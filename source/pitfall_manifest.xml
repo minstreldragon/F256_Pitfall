@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<pgz outputfile="pitfall.pgz">
+<start address="0x0300" />
+<segments>
+<segment filename="game.bin" address="0x0300" />
+<segment filename="../assets/tileset.bin" address="0x010000" />
+</segments>
+</pgz>
