@@ -24,6 +24,7 @@ CHAR_LADDER_LEFT = $1a
 CHAR_LADDER_RIGHT = $1b
 CHAR_BRICK_WALL = $1c
 CHAR_UNDERGROUND_FLOOR = $1d
+CHAR_DENSE_LEAVES = $1e
 CHAR_HOLE_UPPER = $20
 CHAR_HOLE_LOWER = $21
 
@@ -2280,6 +2281,20 @@ _loop_reset_screen_data
         lda #COLOR_WHITE + $08              ; display character as multi-color (%11 = white)
         sta ColorRAM+$022f,x                ; (lower part of screen)
         sta ColorRAM+$0300,x
+.endcomment
+        ; draw dense leaves in the first four rows
+
+        ldy #0                          ; row 0
+        sty zp_row
+        lda #0
+        sta zp_column
+        lda #CHAR_DENSE_LEAVES          ; tile: dense leaves
+        jsr draw_tile_row               ; draw jungle ground (upper) (yellow)
+        jsr draw_tile_row
+        jsr draw_tile_row               ; draw jungle ground (lower) (red)
+        jsr draw_tile_row
+
+.comment
         lda #$1e
         sta screenRAM,x                     ; clear screenRAM
         lda #$00
@@ -2291,7 +2306,6 @@ _loop_reset_screen_data
 
         jsr setup_sprite_data
 
-.comment                                ; F256: store data unpacked in quicksand_screen_data
         lda #<quicksand_data_rom            ; source: $9e21
         sta zp_src+0
         lda #>quicksand_data_rom
@@ -2301,7 +2315,6 @@ _loop_reset_screen_data
         lda #>quicksand_screen_data
         sta zp_dst+1
         jsr decompress_rle_data
-.endcomment
 
         lda #$18                            ; %00011000
         sta $5127                           ; sprite data time: colon
@@ -2664,9 +2677,7 @@ _check_for_vine
         lda #$00
         sta SidVoice1CtrlReg                ; select triangle, GATE = 0 (start release phase)
         sta zp_sound_jumping_counter        ; count down to zero when jumping (sound: pitch)
-.comment
-        jsr draw_jungle_background          ; TODO: draw jungle background (?)
-.endcomment
+        jsr draw_jungle_background          ; draw the jungle background
 
 .comment
 _wait_raster_offscreen
@@ -3217,6 +3228,93 @@ multiply_by_8
 l8f96
 draw_jungle_background
         lda zp_room
+        sta zp_trees_layout             ; seed for jungle randomization
+
+        lda #6                          ; draw line 4-6, backward
+        sta zp_row
+        lda #39
+        sta zp_column
+
+        ldx #3*40-1                     ; iterator: screen memory offsets for 3 lines
+        clc
+_loop_draw_treetop
+        jsr randomize_jungle            ; (random generator $3a/$3f, returns zp_leaves_layout)
+        and #$14                        ; select two bits in leaves layout
+        beq _thin_leaves                ; 75% probability to be 0
+        lda #CHAR_DENSE_LEAVES          ; character: "default tree leaves"
+        bne _thick_leaves
+_thin_leaves
+        lda zp_leaves_layout            ; randomized layout of the tree leaves
+        and #$03                        ; select a "random" number 0-3 based on zp_leaves_layout
+        php
+        clc
+        adc #$0c                        ; convert to a character in range $0c..$0f
+        plp
+_thick_leaves
+        jsr draw_tile
+        dec zp_column
+        dec zp_column
+        bpl _continue_treetop
+        dec zp_row
+        lda #39
+        sta zp_column
+_continue_treetop
+        dex
+        bpl _loop_draw_treetop
+
+        ; draw treetop transition in row 7
+
+        ; originally: fill screen mem with chars $4a..$71
+        ; F256: we directly fill the randomized tiles of the leaves here
+        ;       the branches will go to the foreground tilemap
+
+        ; randomize the 40 characters in the transition zone
+        ; the characters are printed left to right
+
+        lda #7                          ; draw line 7, backwards
+        sta zp_row
+        lda #0
+        sta zp_column
+
+        lda zp_trees_layout
+        and #$03                            ; start transition char = (layout & 3) + 4
+        ora #$04                            ; ($04..$07)
+        sta zp_tree_transition_char         ; character in tree transition line
+
+        ldx #$27
+_loop_randomize_transition_zones
+        ; first, select a random character in range $04..$0b
+        jsr randomize_jungle                ; (random generator $3a/$3f, returns $3a)
+        ldy zp_tree_transition_char         ; character in tree transition line
+        cpy #$04                            ; minimum character id for transition zone
+        bne _limit_transition_char_max
+_inc_transition_char
+        iny
+        bne _randomize_transition_char_cont ; -> character selected
+_limit_transition_char_max
+        cpy #$0b                            ; limit effective char id to range $04..$0b
+        bne _randomize_char_by_layout
+        dey                                 ; limit reached -> use character $0a
+        bne _randomize_transition_char_cont ; -> character selected
+_randomize_char_by_layout
+        rol                                 ; (based on zp_leaves_layout)
+        bcc _inc_transition_char            ; bit = 0: increment transition character
+
+        dey                                 ; bit = 1: decrement transition character
+_randomize_transition_char_cont
+_randomiz_transition_char_cont
+        sty zp_tree_transition_char         ; character in tree transition line
+
+        tya
+        jsr draw_tile
+        dex
+        bpl _loop_randomize_transition_zones
+
+
+        rts                             ; TODO: implement for F256
+
+.comment                                ; original
+        lda zp_room
         sta zp_trees_layout                 ; seed for jungle randomization
 
         ldx #(TEXT_WIDTH*5)+1               ; initialize 5 rows in screen memory shadow buffer
@@ -3514,6 +3612,7 @@ _loop_update_from_shadow_bufs
         bne _loop_update_from_shadow_bufs
 
         rts
+.endcomment
 
 
 l913c
