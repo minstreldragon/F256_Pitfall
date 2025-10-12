@@ -664,7 +664,26 @@
     .byte $00   ; ........
     .byte $00   ; ........
 
-    .fill 54*8,$00
+    .byte $ff   ; ########      ; $4a (jungle background)
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+
+    .byte $ff   ; ########      ; $4b (tree trunk)
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+    .byte $ff   ; ########
+
+
+    .fill $34*8,$00
 
     .byte $3c   ; ..####..
     .byte $66   ; .##..##.

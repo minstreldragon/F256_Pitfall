@@ -30,7 +30,7 @@ initF256                                ; initialize F256
         sta VKY_BKG_COL_G
         sta VKY_BKG_COL_R
 
-        ; set up Tilemap 0 - 8x8 tiles (jungle scene) (background)
+        ; set up Tilemap 0 - 8x8 tiles (jungle scene) (foreground)
 
         lda #$11                        ; 8x8 tiles, enable
         sta VKY_TM0_CTRL
@@ -45,18 +45,39 @@ initF256                                ; initialize F256
         sta VKY_TM0_POS_Y_L
         sta VKY_TM0_POS_Y_H
 
-        lda #<tilemap_bg
+        lda #<tilemap_fg
         sta VKY_TM0_ADDR_L
-        lda #>tilemap_bg
+        lda #>tilemap_fg
         sta VKY_TM0_ADDR_M
         lda #$00
         sta VKY_TM0_ADDR_H
 
-        ; disable tilemaps: 1,2
+        ; set up Tilemap 2 - 8x8 tiles (jungle scene) (background)
+
+        lda #$11                        ; 8x8 tiles, enable
+        sta VKY_TM2_CTRL
+        lda #42                         ; 2 tiles wider than screen allows scrolling
+        sta VKY_TM2_SIZE_X
+        lda #25                         ; 25 rows in text screen
+        sta VKY_TM2_SIZE_Y
+
+        lda #$00
+        sta VKY_TM2_POS_X_L
+        sta VKY_TM2_POS_X_H
+        sta VKY_TM2_POS_Y_L
+        sta VKY_TM2_POS_Y_H
+
+        lda #<tilemap_bg
+        sta VKY_TM2_ADDR_L
+        lda #>tilemap_bg
+        sta VKY_TM2_ADDR_M
+        lda #$00
+        sta VKY_TM2_ADDR_H
+
+        ; disable tilemaps: 1
 
         lda #$00
         sta VKY_TM1_CTRL
-        sta VKY_TM2_CTRL
 
         ; disable bitmaps: 0,1,2
 
@@ -78,9 +99,9 @@ initF256                                ; initialize F256
 
         ; assign the display layers
 
-        lda #$00                        ; Layer 0,1: Bitmap 0 (disabled)
-        sta VKY_LAYER_CTRL_0
-        lda #$04                        ; Layer 2: Tilemap 0 (enabled)
+        lda #$04                        ; Layer 0: Tilemap 1 (enabled)
+        sta VKY_LAYER_CTRL_0            ; Layer 1: (Tilemap 0, disabled)
+        lda #$06                        ; Layer 2: Tilemap 0 (enabled)
         sta VKY_LAYER_CTRL_1
 
 
@@ -1262,6 +1283,11 @@ get_lineptr_tilemap_bg
         pha
         lda #>tilemap_bg
         bne get_lineptr_j1
+
+get_lineptr_tilemap_fg
+        pha
+        lda #>tilemap_fg
+        bne get_lineptr_j1
         
 get_lineptr_j1
         clc
@@ -1272,11 +1298,25 @@ get_lineptr_j1
         pla
         rts
 
-draw_tile
+draw_tile_bg
         phy
         pha
         ldy zp_row
         jsr get_lineptr_tilemap_bg
+        lda zp_column
+        asl
+        tay                             ; target tile column * 2
+        pla                             ; restore tile to draw
+        sta (zpDstPtr),y
+        inc zp_column
+        ply
+        rts
+
+draw_tile_fg
+        phy
+        pha
+        ldy zp_row
+        jsr get_lineptr_tilemap_fg
         lda zp_column
         asl
         tay                             ; target tile column * 2
@@ -1352,6 +1392,12 @@ tilemap_line_ptr_hb
 
         .align $100                     ; align tilemap_text to word
 tilemap_bg
+        ;.fill 42*25*2, [$20,$05]        ; reserve space for 8x8 tiles
+        .fill 42*25*2, [$00,$00]        ; reserve space for 8x8 tiles
+                                        ; default tile: blank tile, in tileset 0
+
+        .align $100                     ; align tilemap_text to word
+tilemap_fg
         ;.fill 42*25*2, [$20,$05]        ; reserve space for 8x8 tiles
         .fill 42*25*2, [$00,$00]        ; reserve space for 8x8 tiles
                                         ; default tile: blank tile, in tileset 0

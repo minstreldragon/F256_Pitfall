@@ -86,6 +86,7 @@ char_colors = [
     [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
 
+    [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],      # $30
     [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
@@ -97,7 +98,23 @@ char_colors = [
     [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
-    [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],      # $40 (font)
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
@@ -150,15 +167,15 @@ def drawChar(draw, charset, ch, x, y):
         px = 0
         print(charset[ch * 8 + py])
         b = charset[ch * 8 + py]
-        if ch < 0x40:
+        if ch < 0x50:
             colors = char_colors[ch][1:]
             is_multicolor = char_colors[ch][0]
         elif ch >= 0xe0:
-            colors = char_colors[0x40][1:]
-            is_multicolor = char_colors[0x40][0]
+            colors = char_colors[0x50][1:]
+            is_multicolor = char_colors[0x50][0]
         else:
-            colors = char_colors[0x41][1:]
-            is_multicolor = char_colors[0x41][0]
+            colors = char_colors[0x51][1:]
+            is_multicolor = char_colors[0x51][0]
         if not is_multicolor:
             #pixels = convertHiresByte(b, char_colors[ch][1:])
             pixels = convertHiresByte(b, colors)

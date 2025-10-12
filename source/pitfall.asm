@@ -27,6 +27,8 @@ CHAR_UNDERGROUND_FLOOR = $1d
 CHAR_DENSE_LEAVES = $1e
 CHAR_HOLE_UPPER = $20
 CHAR_HOLE_LOWER = $21
+CHAR_JUNGLE_BACKGROUND = $4a
+CHAR_TREE_TRUNK = $4b
 
 SPRITE_ID_PLAYER_JUMPING = $28
 SPRITE_ID_PLAYER_STANDING_0 = $2a
@@ -2822,16 +2824,16 @@ _loop_draw_ladder_and_wall
         ldy #COL_LADDER                 ; x position of ladder (in characters)
         sty zp_column
         lda #CHAR_LADDER_LEFT           ; draw left part of ladder
-        jsr draw_tile
+        jsr draw_tile_bg
         lda #CHAR_LADDER_RIGHT          ; draw right part of ladder
-        jsr draw_tile
+        jsr draw_tile_bg
         cpx #WALL_HEIGHT+1              ; last four rows in iterator?
         bcs _skip_brick_wall            ; no ->
         ldy zp_wall_pos                 ; wall position
         sty zp_column
         lda #CHAR_BRICK_WALL
-        jsr draw_tile                   ; draw brick wall (1st byte in row)
-        jsr draw_tile                   ; draw brick wall (2nd byte in row)
+        jsr draw_tile_bg                ; draw brick wall (1st byte in row)
+        jsr draw_tile_bg                ; draw brick wall (2nd byte in row)
 _skip_brick_wall
         inc zp_row
         dex                             ; dec. iterator
@@ -3088,7 +3090,7 @@ _draw_quicksand_row_loop
         sta zp_column
 _draw_quicksand_col_loop
         lda (zp_src),y                  ; quicksand character phase x, column y
-        jsr draw_tile                   ; draw the tile
+        jsr draw_tile_bg                ; draw the tile
         iny
         cpy #20                         ; switch to second row?
         bne _continue                   ; no ->
@@ -3133,41 +3135,41 @@ draw_hole
         sty zp_column
 
         lda #$24                            ; char: upper left edge of hole
-        jsr draw_tile
+        jsr draw_tile_bg
         lda #CHAR_HOLE_UPPER                ; char: hole upper part
         jsr draw_tile_repeat
         lda #$22                            ; char: upper right edge of hole
-        jsr draw_tile
+        jsr draw_tile_bg
 
         inc zp_row                          ; draw lower edge of hole
         sty zp_column
 
         lda #$25                            ; char: lower left edge of hole
-        jsr draw_tile
+        jsr draw_tile_bg
         lda #CHAR_HOLE_LOWER                ; char: hole lower part
         jsr draw_tile_repeat
         lda #$23                            ; char: lower right edge of hole
-        jsr draw_tile
+        jsr draw_tile_bg
 
         inc zp_row                          ; draw upper part of earth
         sty zp_column
 
         lda #$27                            ; left edge of hole (earth)
-        jsr draw_tile
+        jsr draw_tile_bg
         lda #CHAR_BLACK                     ; char: blank
         jsr draw_tile_repeat
         lda #$26                            ; right edge of hole (earth)
-        jsr draw_tile
+        jsr draw_tile_bg
 
         inc zp_row                          ; draw upper part of earth
         sty zp_column
 
         lda #$27                            ; left edge of hole (earth)
-        jsr draw_tile
+        jsr draw_tile_bg
         lda #CHAR_BLACK                     ; char: blank
         jsr draw_tile_repeat
         lda #$26                            ; right edge of hole (earth)
-        jsr draw_tile
+        jsr draw_tile_bg
         
 
 .comment
@@ -3251,7 +3253,7 @@ _thin_leaves
         adc #$0c                        ; convert to a character in range $0c..$0f
         plp
 _thick_leaves
-        jsr draw_tile
+        jsr draw_tile_bg
         dec zp_column
         dec zp_column
         bpl _continue_treetop
@@ -3306,10 +3308,180 @@ _randomiz_transition_char_cont
         sty zp_tree_transition_char         ; character in tree transition line
 
         tya
-        jsr draw_tile
+        jsr draw_tile_bg
         dex
         bpl _loop_randomize_transition_zones
 
+
+        ; clear the jungle background behind the tree trunks
+
+        lda #0
+        sta zp_column
+        lda #8                          ; row 22
+        sta zp_row
+        ldx #5                          ; # of lines to draw: 6
+        lda #CHAR_JUNGLE_BACKGROUND     ; tile: underground passage floor (brown)
+_draw_jungle_background_loop
+        jsr draw_tile_row               ; clear jungle background (behind trunks)
+        dex
+        bne _draw_jungle_background_loop
+
+
+        ; draw the trees
+
+        lda #7                          ; row 22
+        sta zp_row
+l9029
+        lda #$03                            ; iterator: # of tree trunks
+        sta zp_tree_index
+        lda #$00                            ; allow skipping of middle tree
+        sta zp_tree_force_middle            ; 0: allow skipping of tree, 1: draw middle tree
+
+_loop_draw_tree_branches
+        jsr randomize_jungle                ; (random generator $3a/$3f, returns $3a)
+        ldx zp_tree_index
+        beq _draw_tree_branches             ; tree #0 -> always draw
+        cpx #$03
+        beq _draw_tree_branches             ; tree #3 -> always draw
+        lda zp_tree_force_middle            ; 0: allow skipping of tree, 1: draw middle tree
+        bne _draw_tree_branches             ; skipping not allowed? -> draw tree
+        lda zp_trees_layout
+        and #$c0
+        cmp #$c0
+        bne _draw_tree_branches
+        inc zp_tree_force_middle            ; force drawing of next middle tree (if any)
+        lda #$ff                            ; marker: skip tree
+        sta zp_tree_0_column,x              ; $61-$64: start column of tree trunk x
+        jmp _draw_tree_branches_continue    ; continue with next tree
+
+_draw_tree_branches
+_l9051
+        lda #$00                            ; offset for tree #3
+        cpx #$03                            ; tree index == 3? (first iteration, i.e. first tree)
+        beq _use_default_tree_offset
+
+        lda zp_trees_layout                 ; pseudo random number
+        and #$07                            ; range: 0-7
+        cmp #$06                            ; limit range to 0..5
+        bcs _loop_draw_tree_branches
+_use_default_tree_offset
+        sta zp_tree_offset                  ; horizontal offset of tree from default position (0..5)
+;;;        sta zp_dst+0                        ; zp_dst = number in range 0..5
+;;;        lda #$00
+;;;        sta zp_dst+1
+;;;        jsr multiply_by_8                   ; multiply zp_dst by 8 -> range 0-40
+
+
+        lda zp_tree_index
+;;;        asl                                 ; x = 2 * tree index
+        tax
+        clc
+        lda col_tree_offset_table,x     ; tree default offset
+        adc zp_tree_offset              ; add delta position 
+        sta zp_tree_0_column,x          ; $61-$64: start column of tree trunk x
+        sta zp_column
+
+;;;        lda branch_chardef_shadow_ptrs+0,x  ; table of character definitions pointers (shadow buffer)
+;;;        clc                                 ;  (10 characters per table entry)
+;;;        adc zp_dst+0
+;;;        sta zp_dst+0                        ; point to character defitions (shadow buffer)
+;;;        lda branch_chardef_shadow_ptrs+1,x  ;   $4a / $54 / $5e / $68
+;;;        adc zp_dst+1                        ; zp_dst points to character definitions (shadow buffer)
+;;;        sta zp_dst+1                        ;   for characters $4a / $54 / $5e / $68 (by tree index)
+
+        lda zp_trees_layout                 ; select a tree branches pattern based on zp_trees_layout
+        and #$30                            ;  isolate two bits
+        lsr
+        lsr                                 ; make it a 16 bit offset based on number 0..3
+        lsr
+        lsr                             ; F256 (make it 8 bit offset rather than 16 bit) (pattern id: 0..3)
+        sta zp_tree_0_width,x               ; $65-$68: width of tree trunk x
+        tax
+        phx                          ; F256: removed for now, is this needed further down?
+
+        lda small_branch_pattern_char_start,x ; F256
+
+        ldy #5-1                        ; repeat for 5 character definitions
+_loop_copy_tree_branch_char
+        jsr draw_tile_fg
+        clc
+        adc #$01
+        dey
+        bpl _loop_copy_tree_branch_char
+
+
+        inc zp_row
+        lda zp_column
+        sec
+        sbc #5
+        sta zp_column
+
+        plx                             ; branch pattern (0..3)
+        lda big_branch_pattern_char_start,x ; F256
+        tax
+
+        ldy #5-1                        ; repeat for 5 character definitions
+_loop_copy_tree_big_branch_char
+        lda branch_screen_mem_patterns,x    ; read character part of branches
+        jsr draw_tile_bg
+        inx
+        dey
+        bpl _loop_copy_tree_big_branch_char
+        dec zp_row
+
+_draw_tree_branches_continue
+        dec zp_tree_index
+        bmi draw_tree_trunks
+        jmp _loop_draw_tree_branches
+
+
+draw_tree_trunks
+
+        ; draw the tree trunks
+
+        inc zp_row
+
+        lda #$05                            ; tree trunk height
+        sta zp_iterator_0                   ; iterator: tree trunk height
+_loop_draw_tree_trunks
+        inc zp_row
+        lda #4-1                            ; iterator: # of tree trunks
+        sta zp_tree_index2                  ; 0..3
+
+_loop_draw_tree_trunk_line
+        ldx zp_tree_index2                  ; 0..3
+        lda zp_tree_0_column,x              ; $61-$64: start column of tree trunk x
+        cmp #$ff                            ; skip this tree?
+        beq _skip_tree                      ; yes ->
+        sta zp_tree_position                ; horizontal position of tree
+        lda zp_tree_0_width,x               ; $65-$68: pattern id 0..3 (width of tree trunk x)
+        and #$02                            ; 0 or 2
+        lsr                                 ; 0 or 1
+        clc
+        adc #$02                            ; tree width: 2 or 3 columns
+        tax                                 ; as index
+        clc
+        adc zp_tree_position                ; add width to horizontal position of tree
+        tay
+        lda #CHAR_TREE_TRUNK                ; char: tree trunk
+_loop_tree_draw_trunk
+        sty zp_column
+        jsr draw_tile_bg
+        dey
+        dex
+        bne _loop_tree_draw_trunk
+_skip_tree
+        dec zp_tree_index2                  ; 0..3
+        bpl _loop_draw_tree_trunk_line
+
+        ; prepare to draw next line of tree trunks
+
+;;;        lda zp_dst2+0                       ; pointer to screen memory buffer
+;;;        clc
+;;;        inc zp_row                      ; continue to next line on screen
+_skip_inc
+        dec zp_iterator_0                   ; iterate over tree trunk length
+        bne _loop_draw_tree_trunks
 
         rts                             ; TODO: implement for F256
 
@@ -4888,6 +5060,18 @@ l9b47                                   ; Character set (RLE encoded)
         .byte $ff                               ; end of RLE encoded block
 
 
+small_branch_pattern_char_start               ; F256
+        .byte $e0
+        .byte $e5
+        .byte $ea
+        .byte $ef
+
+big_branch_pattern_char_start               ; F256
+        .byte 0
+        .byte 5
+        .byte 10
+        .byte 15
+
 l9ce3
 branch_pattern_char_def_0
         .byte $ff   ; ########
@@ -5085,8 +5269,12 @@ branch_pattern_char_ptrs
 
 l9d8b
 branch_screen_mem_patterns
-        .byte $2e,$2f,$30,$31,$03           ; tree branch pattern 0
-        .byte $03,$00,$00,$03,$03           ; tree branch pattern 1
+;        .byte $2e,$2f,$30,$31,$03           ; tree branch pattern 0
+;        .byte $03,$00,$00,$03,$03           ; tree branch pattern 1
+;        .byte $32,$33,$34,$35,$36           ; tree branch pattern 2
+;        .byte $37,$38,$39,$3a,$3b           ; tree branch pattern 3
+        .byte $2e,$2f,$30,$31,$4a           ; tree branch pattern 0
+        .byte $4a,$4b,$4b,$4a,$4a           ; tree branch pattern 1
         .byte $32,$33,$34,$35,$36           ; tree branch pattern 2
         .byte $37,$38,$39,$3a,$3b           ; tree branch pattern 3
 
@@ -5097,6 +5285,9 @@ branch_chardef_shadow_ptrs
         .word $2050
         .word $20a0
         .word $20f0
+
+col_tree_offset_table
+        .byte 0,10,20,30
 
 l9da7
 score_dst_ptr_table
