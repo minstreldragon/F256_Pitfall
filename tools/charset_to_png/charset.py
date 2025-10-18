@@ -115,10 +115,28 @@ char_colors = [
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BLACK, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BLACK, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_GREEN, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],      # lower jungle transition zone
+    [ False, COLOR_GREEN, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_GREEN, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_GREEN, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],
+
+    [ False, COLOR_GREEN, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],      # $50
+    [ False, COLOR_GREEN, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_GREEN, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_GREEN, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+
 
     [ False, COLOR_BROWN, COLOR_BLACK, COLOR_RED, COLOR_CYAN ],      # $40 (branch masks)
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],      # $41 (font)
@@ -167,15 +185,15 @@ def drawChar(draw, charset, ch, x, y):
         px = 0
         print(charset[ch * 8 + py])
         b = charset[ch * 8 + py]
-        if ch < 0x50:
+        if ch < 0x60:
             colors = char_colors[ch][1:]
             is_multicolor = char_colors[ch][0]
         elif ch >= 0xe0:
-            colors = char_colors[0x50][1:]
-            is_multicolor = char_colors[0x50][0]
+            colors = char_colors[0x60][1:]
+            is_multicolor = char_colors[0x60][0]
         else:
-            colors = char_colors[0x51][1:]
-            is_multicolor = char_colors[0x51][0]
+            colors = char_colors[0x61][1:]
+            is_multicolor = char_colors[0x61][0]
         if not is_multicolor:
             #pixels = convertHiresByte(b, char_colors[ch][1:])
             pixels = convertHiresByte(b, colors)

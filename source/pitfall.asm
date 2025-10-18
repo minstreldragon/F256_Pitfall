@@ -20,6 +20,7 @@ COLOR_LIGHTGREY = $0f
 CHAR_BLACK = $00
 CHAR_SURFACE_FLOOR = $02
 CHAR_SURFACE_EARTH = $03
+CHAR_UPPER_TRANSITION = $04
 CHAR_LADDER_LEFT = $1a
 CHAR_LADDER_RIGHT = $1b
 CHAR_BRICK_WALL = $1c
@@ -29,6 +30,7 @@ CHAR_HOLE_UPPER = $20
 CHAR_HOLE_LOWER = $21
 CHAR_JUNGLE_BACKGROUND = $4a
 CHAR_TREE_TRUNK = $4b
+CHAR_LOWER_TRANSITION = $4c
 
 SPRITE_ID_PLAYER_JUMPING = $28
 SPRITE_ID_PLAYER_STANDING_0 = $2a
@@ -3309,6 +3311,7 @@ _randomiz_transition_char_cont
 
         tya
         jsr draw_tile_bg
+        sta jungle_transition_chars,x   ; store for later use in lower transition zone
         dex
         bpl _loop_randomize_transition_zones
 
@@ -3317,10 +3320,10 @@ _randomiz_transition_char_cont
 
         lda #0
         sta zp_column
-        lda #8                          ; row 22
+        lda #8                          ; row 8
         sta zp_row
         ldx #5                          ; # of lines to draw: 6
-        lda #CHAR_JUNGLE_BACKGROUND     ; tile: underground passage floor (brown)
+        lda #CHAR_JUNGLE_BACKGROUND     ; char: jungle background (green)
 _draw_jungle_background_loop
         jsr draw_tile_row               ; clear jungle background (behind trunks)
         dex
@@ -3329,7 +3332,7 @@ _draw_jungle_background_loop
 
         ; draw the trees
 
-        lda #7                          ; row 22
+        lda #7                          ; row 7 (transition zone)
         sta zp_row
 l9029
         lda #$03                            ; iterator: # of tree trunks
@@ -3410,7 +3413,7 @@ _loop_copy_tree_branch_char
         bpl _loop_copy_tree_branch_char
 
 
-        inc zp_row
+        inc zp_row                      ; inc row for big branches (8)
         lda zp_column
         sec
         sbc #5
@@ -3427,24 +3430,75 @@ _loop_copy_tree_big_branch_char
         inx
         dey
         bpl _loop_copy_tree_big_branch_char
-        dec zp_row
+        dec zp_row                      ; dec row back to transition zone
 
 _draw_tree_branches_continue
         dec zp_tree_index
-        bmi draw_tree_trunks
+        bmi draw_lower_transition_zone
         jmp _loop_draw_tree_branches
+
+
+draw_lower_transition_zone
+
+        ; draw the lower transition zone
+
+        lda #39
+        sta zp_column
+        lda #12                         ; row 12
+        sta zp_row
+
+        ldx #39
+_loop_draw_lower_transition_zone
+        lda jungle_transition_chars,x
+        clc
+        adc #CHAR_LOWER_TRANSITION-CHAR_UPPER_TRANSITION
+        jsr draw_tile_bg
+        dec zp_column
+        dec zp_column
+        dex
+        bpl _loop_draw_lower_transition_zone
+
+
+draw_grass_zone
+
+        ; draw the grass, the lowest zone in the jungle background
+
+        lda #0
+        sta zp_column
+        lda #13                         ; row 13
+        sta zp_row
+
+        ldx #40-1                       ; iterator: screen memory offsets for 1 line
+        clc
+_loop_draw_grass
+        jsr randomize_jungle            ; (random generator $3a/$3f, returns zp_leaves_layout)
+        and #$14                        ; select two bits in leaves layout
+        beq _thin_grass                 ; 75% probability to be 0
+        lda #CHAR_DENSE_LEAVES          ; character: "default tree leaves"
+        bne _thick_grass
+_thin_grass
+        lda zp_leaves_layout            ; randomized layout of the tree leaves
+        and #$03                        ; select a "random" number 0-3 based on zp_leaves_layout
+        php
+        clc
+        adc #$0c                        ; convert to a character in range $0c..$0f
+        plp
+_thick_grass
+        jsr draw_tile_bg
+        dex
+        bpl _loop_draw_grass
 
 
 draw_tree_trunks
 
         ; draw the tree trunks
 
-        inc zp_row
+        lda #9
+        sta zp_row
 
         lda #$05                            ; tree trunk height
         sta zp_iterator_0                   ; iterator: tree trunk height
 _loop_draw_tree_trunks
-        inc zp_row
         lda #4-1                            ; iterator: # of tree trunks
         sta zp_tree_index2                  ; 0..3
 
@@ -3480,6 +3534,7 @@ _skip_tree
 ;;;        clc
 ;;;        inc zp_row                      ; continue to next line on screen
 _skip_inc
+        inc zp_row
         dec zp_iterator_0                   ; iterate over tree trunk length
         bne _loop_draw_tree_trunks
 
@@ -5530,3 +5585,8 @@ quicksand_screen_data
         .byte $11,$13,$15,$17,$17,$17,$19,$19,$19,$29,$29,$19,$19,$19,$17,$17,$17,$15,$2b,$2d
         .byte $10,$12,$14,$16,$16,$16,$18,$18,$18,$28,$28,$18,$18,$18,$16,$16,$16,$14,$2a,$2c
 
+jungle_transition_chars
+        .fill 40,$00
+
+jungle_grass_chars
+        .fill 40,$00
