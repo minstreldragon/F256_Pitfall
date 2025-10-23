@@ -4,5 +4,7 @@
 <segments>
 <segment filename="game.bin" address="0x0300" />
 <segment filename="../assets/tileset.bin" address="0x010000" />
+<segment filename="../assets/number_sprites.bin" address="0x014000" />
+<segment filename="../assets/spriteset.bin" address="0x015000" />
 </segments>
 </pgz>

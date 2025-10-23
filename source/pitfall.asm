@@ -2474,6 +2474,8 @@ l8c0a
         sta zp_player_x_pos
         lda #Y_POS_JUNGLE_GROUND
         sta zp_player_y_pos
+        jsr print_score_and_timer       ; TODO: FOENIX DEBUG REMOVE
+        jsr update_lives_indicator      ; TODO: FOENIX DEBUG REMOVE
         jsr init_scene
 
         jsr print_score_and_timer
@@ -2542,27 +2544,8 @@ _print_blank_char
 _print_digit_not_padding
         inc zp_score_print_zero             ; 0: pad zero with blank, 1: print actual zero
 _print_digit
-        asl                                 ; digit * 8
-        asl
-        asl
-        tax                                 ; index x = digit * 8
-        lda zp_score_index                  ; index for score/time digits
-        asl
-        tay
-        lda score_dst_ptr_table+0,y         ; digit in score sprite * 1000
-        sta zp_dst+0                        ; (first 3 bytes in sprite $23 / $24)
-        lda score_dst_ptr_table+1,y
-        sta zp_dst+1
-        ldy #$00
-_loop_copy_digit
-        lda character_set_ram + $0580,x     ; copy of char ROM for digits 0..9 and space
-        sta (zp_dst),y                      ; copy digit to score sprite
-        inx                                 ; source index += 1
-        iny                                 ; destination index += 3
-        iny                                 ; (next line in sprite)
-        iny
-        cpy #$18                            ; copied all 8 bytes?
-        bne _loop_copy_digit
+        ldx zp_score_index
+        jsr updateNumberSpriteF256
 
         inc zp_score_index                  ; index for score/time digits
         lda zp_score_index                  ; index for score/time digits
@@ -2580,41 +2563,29 @@ _skip_reset_padding
         rts
 
 
-l8ccd
 update_lives_indicator
-        lda #$15                            ; iterator: sprite height
+        lda #2                              ; iterator: # lives positions
         sta zp_iterator_1
         lda #$00
         sta zp_sprite_data_index            ; index into sprite data
-        ldy #$01                            ; initial offset in source data: middle byte of sprite
-loop_fill_lives_indicator
         ldx zp_lives                        ; # of lives left, including current
-        dex
-        lda sprite_player_life,y            ; read middle byte from player life sprite data
+loop_fill_lives_indicator
+        dex                                 ; dec # of lives
+        lda #$01                            ; default: show life in indicator
         cpx #$01                            ; one or more extra lives left? (total: 2)
-        bcs _indicate_lives_1               ; yes -> draw left bonus life indicator
+        bpl _indicate_lives_1               ; yes -> draw left bonus life indicator
         lda #$00                            ; else: clear left sprite area
 _indicate_lives_1
+        phx
         ldx zp_sprite_data_index            ; index into sprite data
-        sta $4c00,x                         ; store in sprite data (Lives) (sprite id: $30)
+        jsr updateLifeIndicatorSpriteF256
+        plx
         inc zp_sprite_data_index            ; inc. index to right column of sprite data
-        inc zp_sprite_data_index
-        ldx zp_lives                        ; # of lives left, including current
-        dex
-        lda sprite_player_life,y
-        cpx #$02                            ; two (or more) extra lives left? (total: 3)
-        bcs _indicate_lives_2               ; yes -> draw right bonus life indicator
-        lda #$00                            ; else: clear left sprite area
-_indicate_lives_2
-        ldx zp_sprite_data_index            ; index into destination sprite data
-        sta $4c00,x                         ; store in sprite data (Lives) (sprite id: $30)
-        inc zp_sprite_data_index            ; inc. index to left column of sprite data in next row
-        iny
-        iny                                 ; inc source data index
-        iny
+
         dec zp_iterator_1                   ; dec iterator
         bne loop_fill_lives_indicator
         rts
+
 
 calculate_next_room
 l8d07
@@ -2671,23 +2642,10 @@ _check_for_vine
         and #$07                            ; extract bits 0-2 (objects)
         sta zp_objects                      ; set objects variable
 
-.comment
-        lda VicSpriteMulticolor
-        ora #$01                            ; set Multicolor for player sprite 0
-        and #$81                            ; disable multicolor for sprites 1-6
-        sta VicSpriteMulticolor
-.endcomment
-
         lda #$00
         sta SidVoice1CtrlReg                ; select triangle, GATE = 0 (start release phase)
         sta zp_sound_jumping_counter        ; count down to zero when jumping (sound: pitch)
         jsr draw_jungle_background          ; draw the jungle background
-
-.comment
-_wait_raster_offscreen
-        lda VicScreenCtrlReg1               ; wait for MSB raster line = 1
-        bpl _wait_raster_offscreen
-.endcomment
 
         ; draw jungle ground
         ; - two yellow rows
@@ -2699,12 +2657,9 @@ _wait_raster_offscreen
         sta zp_column
         lda #CHAR_SURFACE_FLOOR         ; tile: jungle surface floor
         jsr draw_tile_row               ; draw jungle ground (upper) (yellow)
-;        inc zp_row                      ; row 15
         jsr draw_tile_row
-;        inc zp_row                      ; row 16
         lda #CHAR_SURFACE_EARTH         ; tile: jungle surface earth
         jsr draw_tile_row               ; draw jungle ground (lower) (red)
-;        inc zp_row                      ; row 17
         jsr draw_tile_row
 
         ; draw underground cavern (black background color area)
@@ -2712,7 +2667,7 @@ _wait_raster_offscreen
         ldx #6                          ; # of lines to draw: 6
         lda #CHAR_BLACK                 ; tile: underground passage background (black)
 _draw_passage_loop
-;        inc zp_row                      ; rows 18-23
+                                        ; rows 18-23
         jsr draw_tile_row               ; clear underground passage and below
         dex
         bne _draw_passage_loop
@@ -2788,26 +2743,6 @@ _draw_center_hole_and_ladder
         jsr draw_hole                       ; draw center hole
 
 
-.comment
-        ; patch up the corners of the pit
-        ; and the upper edges of the ladder
-
-        ldx #$22                            ; char: $22
-        stx screenRAM+$0245                 ; upper right edge of hole
-        inx                                 ; char: $23
-        stx screenRAM+$026d                 ; lower right edge of hole
-        inx                                 ; char: $24
-        stx screenRAM+$0242                 ; upper left edge of hole
-        inx                                 ; char: $25
-        stx screenRAM+$026a                 ; lower left edge of hole
-        inx                                 ; char: $26
-        stx screenRAM+$0295                 ; upper right edge of hole (lower)
-        stx screenRAM+$02bd                 ; lower right edge of hole (lower)
-        inx                                 ; char: $27
-        stx screenRAM+$0292                 ; upper left edge of hole (lower)
-        stx screenRAM+$02ba                 ; lower left edge of hole (lower)
-.endcomment
-
         ; determine the wall position (left or right)
 
         ldy #COL_WALL_LEFT                  ; screen column: wall to the left
@@ -2842,39 +2777,6 @@ _skip_brick_wall
         bne _loop_draw_ladder_and_wall
 
 
-
-.comment
-        ldx #LADDER_LENGTH                  ; iterator: length of ladder (6)
-        lda #<screenRAM+ROW_LADDER_TOP*40   ; screen row 16
-        sta zp_dst2+0
-        lda #>screenRAM+ROW_LADDER_TOP*40   ; screen row 16
-        sta zp_dst2+1
-_loop_draw_ladder_and_wall
-        ldy #COL_LADDER                     ; x position of ladder (in characters)
-        lda #CHAR_LADDER_LEFT
-        sta (zp_dst2),y                     ; draw ladder (left)
-        iny                                 ; next column
-        lda #CHAR_LADDER_RIGHT
-        sta (zp_dst2),y                     ; draw ladder (right)
-        cpx #WALL_HEIGHT+1                  ; last four rows in iterator?
-        bcs _skip_brick_wall                ; no ->
-        lda #CHAR_BRICK_WALL
-        ldy zp_wall_pos                     ; wall position
-        sta (zp_dst2),y                     ; draw brick wall (1st byte in row)
-        iny                                 ; next column
-        sta (zp_dst2),y                     ; draw brick wall (2nd byte in row)
-_skip_brick_wall
-        lda zp_dst2+0
-        clc
-        adc #TEXT_WIDTH                     ; increase by one row of characters (40)
-        sta zp_dst2+0
-        bcc _skip_hb
-        inc zp_dst2+1
-_skip_hb
-        dex                                 ; dec. iterator
-        bne _loop_draw_ladder_and_wall
-.endcomment
-
 _break
         jmp _break
 
@@ -2892,25 +2794,6 @@ _break
         ldx #$03                            ; hole width: 3 characters
         ldy #COL_HOLE_RIGHT                 ; hole position (column): right ($1c)
         jsr draw_hole                       ; draw right hole
-
-.comment
-        ; patch up the corners of the left and right pits
-
-        ldx #$22                            ; char: $22
-        stx screenRAM+$024d                 ; upper right edge of right hole
-        inx                                 ; char: $23
-        stx screenRAM+$0275                 ; lower right edge of right hole
-        inx                                 ; char: $24
-        stx screenRAM+$023a                 ; upper left edge of left hole
-        inx                                 ; char: $25
-        stx screenRAM+$0262                 ; lower left edge of left hole
-        inx                                 ; char: $26
-        stx screenRAM+$029d                 ; upper right edge of right hole (lower)
-        stx screenRAM+$02c5                 ; lower right edge of right hole (lower)
-        inx
-        stx screenRAM+$028a                 ; upper left edge of left hole (lower)
-        stx screenRAM+$02b2                 ; lower left edge of left hole (lower)
-.endcomment
 
         bne init_skip_scorpion_quicksand    ; (always) skip scorpion
 
@@ -3369,42 +3252,29 @@ _l9051
         bcs _loop_draw_tree_branches
 _use_default_tree_offset
         sta zp_tree_offset                  ; horizontal offset of tree from default position (0..5)
-;;;        sta zp_dst+0                        ; zp_dst = number in range 0..5
-;;;        lda #$00
-;;;        sta zp_dst+1
-;;;        jsr multiply_by_8                   ; multiply zp_dst by 8 -> range 0-40
 
 
         lda zp_tree_index
-;;;        asl                                 ; x = 2 * tree index
         tax
         clc
-        lda col_tree_offset_table,x     ; tree default offset
-        adc zp_tree_offset              ; add delta position 
-        sta zp_tree_0_column,x          ; $61-$64: start column of tree trunk x
+        lda col_tree_offset_table,x         ; tree default offset
+        adc zp_tree_offset                  ; add delta position 
+        sta zp_tree_0_column,x              ; $61-$64: start column of tree trunk x
         sta zp_column
 
-;;;        lda branch_chardef_shadow_ptrs+0,x  ; table of character definitions pointers (shadow buffer)
-;;;        clc                                 ;  (10 characters per table entry)
-;;;        adc zp_dst+0
-;;;        sta zp_dst+0                        ; point to character defitions (shadow buffer)
-;;;        lda branch_chardef_shadow_ptrs+1,x  ;   $4a / $54 / $5e / $68
-;;;        adc zp_dst+1                        ; zp_dst points to character definitions (shadow buffer)
-;;;        sta zp_dst+1                        ;   for characters $4a / $54 / $5e / $68 (by tree index)
-
         lda zp_trees_layout                 ; select a tree branches pattern based on zp_trees_layout
-        and #$30                            ;  isolate two bits
+        and #$30                            ; isolate two bits
         lsr
         lsr                                 ; make it a 16 bit offset based on number 0..3
         lsr
-        lsr                             ; F256 (make it 8 bit offset rather than 16 bit) (pattern id: 0..3)
+        lsr                                 ; F256 (make it 8 bit offset rather than 16 bit) (pattern id: 0..3)
         sta zp_tree_0_width,x               ; $65-$68: width of tree trunk x
         tax
-        phx                          ; F256: removed for now, is this needed further down?
+        phx                                 ; F256: removed for now, is this needed further down?
 
         lda small_branch_pattern_char_start,x ; F256
 
-        ldy #5-1                        ; repeat for 5 character definitions
+        ldy #5-1                            ; repeat for 5 character definitions
 _loop_copy_tree_branch_char
         jsr draw_tile_fg
         clc
@@ -3413,24 +3283,24 @@ _loop_copy_tree_branch_char
         bpl _loop_copy_tree_branch_char
 
 
-        inc zp_row                      ; inc row for big branches (8)
+        inc zp_row                          ; inc row for big branches (8)
         lda zp_column
         sec
         sbc #5
         sta zp_column
 
-        plx                             ; branch pattern (0..3)
+        plx                                 ; branch pattern (0..3)
         lda big_branch_pattern_char_start,x ; F256
         tax
 
-        ldy #5-1                        ; repeat for 5 character definitions
+        ldy #5-1                            ; repeat for 5 character definitions
 _loop_copy_tree_big_branch_char
         lda branch_screen_mem_patterns,x    ; read character part of branches
         jsr draw_tile_bg
         inx
         dey
         bpl _loop_copy_tree_big_branch_char
-        dec zp_row                      ; dec row back to transition zone
+        dec zp_row                          ; dec row back to transition zone
 
 _draw_tree_branches_continue
         dec zp_tree_index
@@ -3444,7 +3314,7 @@ draw_lower_transition_zone
 
         lda #39
         sta zp_column
-        lda #12                         ; row 12
+        lda #12                             ; row 12
         sta zp_row
 
         ldx #39
@@ -3530,316 +3400,12 @@ _skip_tree
 
         ; prepare to draw next line of tree trunks
 
-;;;        lda zp_dst2+0                       ; pointer to screen memory buffer
-;;;        clc
-;;;        inc zp_row                      ; continue to next line on screen
 _skip_inc
         inc zp_row
         dec zp_iterator_0                   ; iterate over tree trunk length
         bne _loop_draw_tree_trunks
 
-        rts                             ; TODO: implement for F256
-
-.comment                                ; original
-        lda zp_room
-        sta zp_trees_layout                 ; seed for jungle randomization
-
-        ldx #(TEXT_WIDTH*5)+1               ; initialize 5 rows in screen memory shadow buffer
-        lda #$03                            ; character: jungle background (light green)
-_loop_clear_jungle_background
-        sta $17ff,x                         ; init jungle scene (background of tree trunks)
-        dex
-        bne _loop_clear_jungle_background
-
-        ldx #3*40-1                         ; iterator: screen memory offsets for 3 lines
-        clc
-_loop_draw_treetop
-        jsr randomize_jungle                ; (random generator $3a/$3f, returns zp_leaves_layout)
-        and #$14                            ; select two bits in leaves layout
-        beq _thin_leaves                    ; 75% probability to be 0
-        lda #$1e                            ; character: "default tree leaves"
-        bne _thick_leaves
-_thin_leaves
-        lda zp_leaves_layout                ; randomized layout of the tree leaves
-        and #$03                            ; select a "random" number 0-3 based on zp_leaves_layout
-        php
-        clc
-        adc #$0c                            ; convert to a character in range $0c..$0f
-        plp
-_thick_leaves
-        sta screenRAM+4*40,x                ; screen RAM lines 4-6 (treetop, less dense)
-.if DO_BUGFIX == false
-        sta $18a0,x                         ; store copy at screen memory shadow buffer. BUG: overwritten below?
-.endif
-        cpx #$28                            ; x > 40?
-        bcs _skip_treetop_transition        ; yes -> skip
-
-
-        ; draw treetop transition in row 7
-
-        txa                                 ; transition treetop (row 7)
-        clc
-        adc #$4a                            ; fill screen mem with chars $4a..$71
-        sta screenRAM+7*40,x                ; screen RAM line 7
-_skip_treetop_transition
-        dex
-        bpl _loop_draw_treetop
-
-        ; randomize the 40 characters in the transition zone
-
-        lda zp_trees_layout
-        and #$03                            ; start transition char = (layout & 3) + 4
-        ora #$04                            ; ($04..$07)
-        sta zp_tree_transition_char         ; character in tree transition line
-        lda #$00
-        sta zp_dst2+0                       ; destination charset shadow buffer: $2000
-        lda #$20
-        sta zp_dst2+1
-        ldx #$27
-
-_l8fe1
-_loop_randomize_transition_zones
-
-        ; first, select a random character in range $04..$0b
-
-        jsr randomize_jungle                ; (random generator $3a/$3f, returns $3a)
-        ldy zp_tree_transition_char         ; character in tree transition line
-        cpy #$04                            ; minimum character id for transition zone
-        bne _limit_transition_char_max
-_inc_transition_char
-        iny
-        bne _randomize_transition_char_cont ; -> character selected
-_limit_transition_char_max
-        cpy #$0b                            ; limit effective char id to range $04..$0b
-        bne _randomize_char_by_layout
-        dey                                 ; limit reached -> use character $0a
-        bne _randomize_transition_char_cont ; -> character selected
-_randomize_char_by_layout
-        rol                                 ; (based on zp_leaves_layout)
-        bcc _inc_transition_char            ; bit = 0: increment transition character
-
-        dey                                 ; bit = 1: decrement transition character
-_randomize_transition_char_cont
-_randomiz_transition_char_cont
-        sty zp_tree_transition_char         ; character in tree transition line
-        sty zp_src2+0                       ; source pointer (alternative) (2)
-        lda #$00
-        sta zp_src2+1
-        jsr multiply_by_8                   ; as offset into characset data
-        lda zp_src2+1
-        clc
-        adc #>character_set_ram
-        sta zp_src2+1                       ; make it a charset pointer
-
-        ldy #$07                            ; iterator: 8 bytes per character definition
-_loop_copy_char_definition
-        lda (zp_src2),y                     ; read byte from charset source
-        sta (zp_dst2),y                     ; copy it into randomized target character
-        dey
-        bpl _loop_copy_char_definition
-
-        ; prepare screen memory for transition line at bottom of tree
-
-        lda zp_tree_transition_char         ; character in tree transition line ($04..$0b)
-        clc
-        adc #$6f                            ; ($73,..,$7a)
-        sta $18a0,x                         ; store in screen memory bottom of tree transition zone (shadow buffer)
-
-        lda zp_dst2+0
-        clc
-        adc #$08
-        sta zp_dst2+0
-        bcc _skip_inc_hb
-        inc zp_dst2+1
-_skip_inc_hb
-        dex                                 ; repeat for 40 characters in transition zone
-        bpl _loop_randomize_transition_zones
-
-        ; draw the trees
-
-l9029
-        lda #$03                            ; iterator: # of tree trunks
-        sta zp_tree_index
-        lda #$00                            ; allow skipping of middle tree
-        sta zp_tree_force_middle            ; 0: allow skipping of tree, 1: draw middle tree
-
-_loop_draw_tree_branches
-        jsr randomize_jungle                ; (random generator $3a/$3f, returns $3a)
-        ldx zp_tree_index
-        beq _draw_tree_branches             ; tree #0 -> always draw
-        cpx #$03
-        beq _draw_tree_branches             ; tree #3 -> always draw
-        lda zp_tree_force_middle            ; 0: allow skipping of tree, 1: draw middle tree
-        bne _draw_tree_branches             ; skipping not allowed? -> draw tree
-        lda zp_trees_layout
-        and #$c0
-        cmp #$c0
-        bne _draw_tree_branches
-        inc zp_tree_force_middle            ; force drawing of next middle tree (if any)
-        lda #$ff                            ; marker: skip tree
-        sta zp_tree_0_column,x              ; $61-$64: start column of tree trunk x
-        jmp _draw_tree_branches_continue    ; continue with next tree
-
-_draw_tree_branches
-_l9051
-        lda #$00                            ; offset for tree #3
-        cpx #$03                            ; tree index == 3? (first iteration, i.e. first tree)
-        beq _use_default_tree_offset
-
-        lda zp_trees_layout                 ; pseudo random number
-        and #$07                            ; range: 0-7
-        cmp #$06                            ; limit range to 0..5
-        bcs _loop_draw_tree_branches
-_use_default_tree_offset
-        sta zp_tree_offset                  ; horizontal offset of tree from default position (0..5)
-        sta zp_dst+0                        ; zp_dst = number in range 0..5
-        lda #$00
-        sta zp_dst+1
-        jsr multiply_by_8                   ; multiply zp_dst by 8 -> range 0-40
-
-        lda zp_tree_index
-        asl                                 ; x = 2 * tree index
-        tax
-        lda branch_chardef_shadow_ptrs+0,x  ; table of character definitions pointers (shadow buffer)
-        clc                                 ;  (10 characters per table entry)
-        adc zp_dst+0
-        sta zp_dst+0                        ; point to character defitions (shadow buffer)
-        lda branch_chardef_shadow_ptrs+1,x  ;   $4a / $54 / $5e / $68
-        adc zp_dst+1                        ; zp_dst points to character definitions (shadow buffer)
-        sta zp_dst+1                        ;   for characters $4a / $54 / $5e / $68 (by tree index)
-
-        lda zp_trees_layout                 ; select a tree branches pattern based on zp_trees_layout
-        and #$30                            ;  isolate two bits
-        lsr
-        lsr                                 ; make it a 16 bit offset based on number 0..3
-        lsr
-        tax
-        lsr                                 ; pattern id: 0..3
-        pha
-        lda branch_pattern_char_ptrs+0,x
-        sta zp_src+0
-        lda branch_pattern_char_ptrs+1,x
-        sta zp_src+1
-
-        ldy #(5*8)-1                        ; repeat for 5 character definitions
-_loop_copy_tree_branch_char
-        lda (zp_src),y
-        and (zp_dst),y                      ; combine with previous character definition
-        sta (zp_dst),y                      ; store in character definition (shadow buffer)
-        dey
-        bpl _loop_copy_tree_branch_char
-
-        lda zp_tree_index
-        asl                                 ; 10 * zp_tree_index
-        sta zp_tree_column                  ; screen mem column for current tree trunk
-        asl
-        asl
-        clc
-        adc zp_tree_column                  ; screen mem column for current tree trunk
-
-        adc zp_tree_offset                  ; tree start position = 10 * zp_tree_index + zp_tree_offset (0..5)
-        sta zp_tree_column                  ; screen mem column for current tree trunk
-        ldx zp_tree_index
-        sta zp_tree_0_column,x              ; $61-$64: start column of tree trunk x
-        pla
-        sta zp_tree_pattern_offset          ; offset of tree branch pattern
-        sta zp_tree_0_width,x               ; $65-$68: width of tree trunk x
-        asl
-        asl
-        clc
-        adc zp_tree_pattern_offset          ; offset of tree branch pattern = 5 * pattern
-        sta zp_tree_pattern_offset          ; offset of tree branch pattern
-
-        ldy #$05                            ; copy 5 byte per tree
-_loop_draw_branches_line_2
-        ldx zp_tree_pattern_offset          ; offset of tree branch pattern
-        lda branch_screen_mem_patterns,x    ; read character part of branches
-        inc zp_tree_pattern_offset
-        ldx zp_tree_column                  ; screen mem column for current tree trunk
-        sta $1800,x                         ; store char in screen memory (shadow buffer)
-        inc zp_tree_column                  ; continue to next char
-        dey
-        bne _loop_draw_branches_line_2
-
-_draw_tree_branches_continue
-        dec zp_tree_index
-        bmi draw_tree_trunks
-        jmp _loop_draw_tree_branches
-
-
-draw_tree_trunks
-_l90d4
-        lda #<$1828
-        sta zp_dst2+0                       ; destination: buffer for screen memory
-        lda #>$1828
-        sta zp_dst2+1
-        lda #$05                            ; tree trunk height
-        sta zp_iterator_0                   ; iterator: tree trunk height
-
-_loop_draw_tree_trunks
-        lda #$03                            ; iterator: # of tree trunks
-        sta zp_tree_index2                  ; 0..3
-
-_l90e4
-_loop_draw_tree_trunk_line
-        ldx zp_tree_index2                  ; 0..3
-        lda zp_tree_0_column,x              ; $61-$64: start column of tree trunk x
-        cmp #$ff                            ; skip this tree?
-        beq _skip_tree                      ; yes ->
-        sta zp_tree_position                ; horizontal position of tree
-        lda zp_tree_0_width,x               ; $65-$68: pattern id 0..3 (width of tree trunk x)
-        and #$02                            ; 0 or 2
-        lsr                                 ; 0 or 1
-        clc
-        adc #$02                            ; tree width: 2 or 3 columns
-        tax                                 ; as index
-        clc
-        adc zp_tree_position                ; add width to horizontal position of tree
-        tay
-        lda #$00                            ; char: tree trunk
-_loop_tree_draw_trunk
-        sta (zp_dst2),y                     ; store in screen memory buffer
-        dey
-        dex
-        bne _loop_tree_draw_trunk
-_skip_tree
-        dec zp_tree_index2                  ; 0..3
-        bpl _loop_draw_tree_trunk_line
-
-        ; prepare to draw next line of tree trunks
-
-        lda zp_dst2+0                       ; pointer to screen memory buffer
-        clc
-        adc #TEXT_WIDTH                     ; increment pointer to next line
-        sta zp_dst2+0
-        bcc _skip_inc
-        inc zp_dst2+1
-_skip_inc
-        dec zp_iterator_0                   ; iterate over tree trunk length
-        bne _loop_draw_tree_trunks
-
-
-_wait_raster_b0
-        lda VicScreenCtrlReg1               ; wait for MSB raster line = 0
-        bmi _wait_raster_b0                 ; MSB raster = 0? ->
-        lda VicRasterValue
-        cmp #$b0
-        bcc _wait_raster_b0
-
-        ldx #$00
-_loop_update_from_shadow_bufs
-        lda $1800,x
-        sta screenRAM+8*40,x                ; copy tree trunks upper part ($4140)
-        lda $2000,x
-        sta $6250,x                         ; character $4a-: lower row of leaves
-        lda $2050,x
-        sta $62a0,x
-        inx
-        cpx #6*40
-        bne _loop_update_from_shadow_bufs
-
         rts
-.endcomment
 
 
 l913c
@@ -5344,18 +4910,6 @@ branch_chardef_shadow_ptrs
 col_tree_offset_table
         .byte 0,10,20,30
 
-l9da7
-score_dst_ptr_table
-        .word $50c0                         ; dest memory for score x 100000
-        .word $50c1                         ; dest memory for score x  10000
-        .word $50c2                         ; dest memory for score x   1000
-        .word $5100                         ; dest memory for score x    100
-        .word $5101                         ; dest memory for score x     10
-        .word $5102                         ; dest memory for score x      1
-        .word $50e5                         ; dest memory for minutes x 10
-        .word $50e6                         ; dest memory for minutes x  1
-        .word $5125                         ; dest memory for seconds x 10
-        .word $5126                         ; dest memory for seconds x  1
 
 l9dbb
 objects_x_pos_table

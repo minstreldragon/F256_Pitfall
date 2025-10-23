@@ -12,7 +12,7 @@ initF256                                ; initialize F256
         lda #$00                        ; Set the I/O page to #1
         sta MMU_IO_CTRL                 ; ($c000-$dfff is I/O)
 
-        lda #$14                        ; enable Tile, Graphics engines. Disable Sprites, Bitmap, Text
+        lda #$34                        ; enable Sprite, Tile, Graphics engines. Disable Sprites, Bitmap, Text
         sta VKY_MSTR_CTRL_0             ; save that to VICKY master control register 0
         lda #$01                        ; set CLK70, for 320x200 display size
         sta VKY_MSTR_CTRL_1             ; save that to VICKY master control register 0
@@ -107,6 +107,7 @@ initF256                                ; initialize F256
 
         jsr initSwapAreaC000            ; prepare $c000 for being used as swap area
         jsr initSpritesF256
+        jsr initNumberSpritesF256
 
 .comment
 .if FOENIX_IDE
@@ -591,6 +592,121 @@ _disableSpritesL
         iny
         bne _disableSpritesL
         rts
+
+
+initNumberSpritesF256
+        ; A = sprite index (0..5 = score, 6,7: minutes, 8,9: seconds, 10: colon)
+        ldy #$00                        ; iterator
+        ldx #$00
+_initNumberSpritesL
+        lda #%01000001                  ; size: 16x16, layer 0, LUT 0, Enable
+        sta VKY_SP0_CTRL,y
+
+        lda numberSpriteXPositions+0,x
+        sta VKY_SP0_POS_X_L,y
+        lda numberSpriteXPositions+1,x
+        sta VKY_SP0_POS_X_H,y
+        lda numberSpriteYPositions+0,x
+        sta VKY_SP0_POS_Y_L,y
+        lda numberSpriteYPositions+1,x
+        sta VKY_SP0_POS_Y_H,y
+
+        lda #<numberSpritesF256
+        sta VKY_SP0_AD_L,y
+        lda #>numberSpritesF256
+        sta VKY_SP0_AD_M,y
+        lda #$01
+        sta VKY_SP0_AD_H,y
+
+        inx
+        inx
+        tya
+        clc
+        adc #$08
+        tay
+;        cpy #$68
+        cpy #$70
+        bne _initNumberSpritesL
+
+        ldy #SPRITE_ID_COLON * 8
+        lda #<(numberSpritesF256+SPRITE_DATA_COLON*$0100)
+        sta VKY_SP0_AD_L,y
+        lda #>(numberSpritesF256+SPRITE_DATA_COLON*$0100)
+        sta VKY_SP0_AD_M,y
+
+        ldy #SPRITE_ID_LIFE_INDICATOR * 8
+        lda #<(mainSpritesF256+SPRITE_DATA_LIFE_INDICATOR*24*24)
+        sta VKY_SP0_AD_L,y
+        lda #>(mainSpritesF256+SPRITE_DATA_LIFE_INDICATOR*24*24)
+        sta VKY_SP0_AD_M,y
+
+        ldy #(SPRITE_ID_LIFE_INDICATOR+1) * 8
+        lda #<(mainSpritesF256+SPRITE_DATA_LIFE_INDICATOR*24*24)
+        sta VKY_SP0_AD_L,y
+        lda #>(mainSpritesF256+SPRITE_DATA_LIFE_INDICATOR*24*24)
+        sta VKY_SP0_AD_M,y
+
+        rts
+
+
+updateNumberSpriteF256
+        ; A = sprite data (0..5 = score, 6,7: minutes, 8,9: seconds, 10: colon)
+        ; point sprite shape (A) to the sprite indicated by (X).
+
+        pha
+        phx
+        pha
+        txa
+        asl
+        asl
+        asl
+        tax
+
+        pla
+        clc
+        adc #>numberSpritesF256
+        sta VKY_SP0_AD_M,x
+        plx
+        pla
+
+        rts
+
+
+updateLifeIndicatorSpriteF256
+        ; A: state of life indicator (0: hide, 1: show)
+        ; X: index of life indicator (0,1)
+        phx
+        pha
+        txa
+        asl
+        asl
+        asl
+        adc #SPRITE_ID_LIFE_INDICATOR * 8
+        tax
+        pla
+        pha
+        cmp #$01
+        beq _showLife
+        lda #%00100000                  ; size: 24x24, layer 0, LUT 0, Disable
+        jmp _continue
+_showLife
+        lda #%00100001                  ; size: 24x24, layer 0, LUT 0, Enable
+_continue
+        sta VKY_SP0_CTRL,x              ; disable or enable sprite
+        pla
+        plx
+        rts
+
+
+numberSpriteXPositions
+        .word 88,104,120,136,152,168    ; score
+        .word 104,120,152,168,136       ; minutes, seconds, colon
+        .word 40,56                     ; life indicator
+
+numberSpriteYPositions
+        .word 42,42,42,42,42,42         ; score
+        .word 54,54,54,54,54            ; minutes, seconds, colon
+        .word 42,42                     ; life indicator
 
 .comment
         ldy #$00                        ; iterator
@@ -1288,7 +1404,7 @@ get_lineptr_tilemap_fg
         pha
         lda #>tilemap_fg
         bne get_lineptr_j1
-        
+
 get_lineptr_j1
         clc
         adc tilemap_line_ptr_hb,y
