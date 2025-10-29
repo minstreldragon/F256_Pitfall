@@ -26,7 +26,7 @@ palette = []
 sprite_width = 24
 source_height = 21
 target_height = 24
-n_width = 5
+n_width = 8
 n_height = 5
 width = sprite_width * n_width
 height = target_height * n_height
@@ -61,17 +61,26 @@ tileColors = [
 
 
 sprite_colors = [
-    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $00   - 
-    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $01   - 
-    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $02   - 
-    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $03   - 
-    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $04   - 
-    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $05   - 
-    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $06   - 
-    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $07   - 
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $00   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $01   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $02   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $03   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $04   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $05   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $06   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $07   -
+
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $08   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $09   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $0a   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $0b   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $0c   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $0d   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $0e   -
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $0f   -
 
     [ False, background_color, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],    # $08 - rolling log
-    [ False, background_color, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],    # $09 - rolling log  
+    [ False, background_color, COLOR_BROWN, COLOR_BLACK, COLOR_BLACK ],    # $09 - rolling log
     [ True, background_color, COLOR_YELLOW, COLOR_BROWN, COLOR_ORANGE ],    # $0b - fire
     [ True, background_color, COLOR_YELLOW, COLOR_BROWN, COLOR_ORANGE ],    # $0b - fire
     [ False, background_color, COLOR_DARKGREY, COLOR_BLACK, COLOR_BLACK ],    # $0c - snake
@@ -314,12 +323,43 @@ def drawTile(draw, tileset, tile, x, y, col0, col1):
             draw.point((x+px+8, y+py), pixel)
             px += 1
 
+
+def mirrorSprite(inspr):
+    out = bytearray()
+    #out.extend(inspr)
+    for y in range(source_height):
+        l_triple = inspr[y*3:(y+1)*3]
+        for b in range(3):
+            inbyte = l_triple[2-b]
+            outbyte = 0
+            for x in range(4):
+                pair = (inbyte >> ((3-x)*2)) & 0x03
+                outbyte = outbyte | (pair << (x*2))
+            out.append(outbyte)
+    out.append(0x00)
+    return out
+
+
+def extendSpriteset(spriteset_org):
+    spriteset = bytearray()
+    # first, copy and mirror harry sprites
+    # second, add all sprites below Harry
+    for i in range(8):
+        spriteset.extend(spriteset_org[i*64:(i+1)*64])
+        spriteset.extend(mirrorSprite(spriteset_org[i*64:(i+1)*64]))
+    #spriteset.extend(spriteset_org[0:8*64])
+    spriteset.extend(spriteset_org[8*64:])
+    return spriteset
+
 if __name__ == '__main__':
 
     # open and read C64 tile set file
     file = open("sprites", "rb")
-    spriteset = file.read()
+    spriteset_org = file.read()
     file.close()
+
+    # create a copy of the sprite data, add flipped versions of Harry sprites
+    spriteset = extendSpriteset(spriteset_org)
 
     # create a blank image
     image = Image.new("RGB", (width, height))
