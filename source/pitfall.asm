@@ -32,14 +32,19 @@ CHAR_JUNGLE_BACKGROUND = $4a
 CHAR_TREE_TRUNK = $4b
 CHAR_LOWER_TRANSITION = $4c
 
+SPRITE_ID_PLAYER_RUNNING = $20
 SPRITE_ID_PLAYER_JUMPING = $28
 SPRITE_ID_PLAYER_STANDING_0 = $2a
+SPRITE_ID_PLAYER_ON_VINE = $2c
+SPRITE_ID_PLAYER_CLIMBING = $2e
 SPRITE_ID_PLAYER_LIFE = SPRITE_ID_PLAYER_STANDING_0
 SPRITE_ID_ROLLING_LOG_0 = $32
 SPRITE_ID_FIRE_0 = $34
 SPRITE_ID_SNAKE_0 = $36
 SPRITE_ID_CROCODILE = $38
-SPRITE_ID_SCORPION_RIGHT = $3b
+SPRITE_ID_SCORPION_RIGHT = $3a
+SPRITE_ID_SCORPION_LEFT = $3c
+SPRITE_ID_SCORPION_RIGHT_OLD = $3b
 SPRITE_ID_MONEY_BAG = $3e
 SPRITE_ID_GOLD_SILVER_BAR = $40
 SPRITE_ID_DIAMOND_RING = $42
@@ -387,7 +392,7 @@ Cia2TimerBCtrlReg = $dd0f
 Cartridge_Start
         sei
         cld
-;;        jsr init_hardware               ; init CIAs, SID, Processor Port
+;;;        jsr init_hardware               ; init CIAs, SID, Processor Port
         jsr initF256                    ; initialize F256 hardware
 
         ; determine the video mode: Are we running in NTSC or PAL?
@@ -712,7 +717,8 @@ l81e5
 set_player_sprite_standing
         lda #SPRITE_ID_PLAYER_STANDING_0    ; sprite id: Harry standing right
         ora zp_player_orientation           ; player orientation: 0: facing right, 1: facing left
-        sta sprite_0_pointer
+;;;        sta sprite_0_pointer
+        jsr updateHarrySpriteF256       ; TODO, EXPERIMENTAL
         sta zp_not_directional_jump         ; 0: directional jump or swinging, >0: otherwise
         lda #$00
         sta zp_player_run_animation         ; Harry running animation phase (0-4)
@@ -832,7 +838,8 @@ _set_harry_running_sprite
         tax                                 ; animation phase
         lda harry_run_animation_sprite_id,x
         ora zp_player_orientation           ; player orientation: 0: facing right, 1: facing left
-        sta sprite_0_pointer
+;;;        sta sprite_0_pointer
+        jsr updateHarrySpriteF256       ; TODO, EXPERIMENTAL
         rts
 
 l829f
@@ -841,7 +848,8 @@ set_player_sprite_jumping
         sta zp_player_run_animation         ; Harry running animation phase (0-4)
         lda #SPRITE_ID_PLAYER_JUMPING       ; sprite id: Harry jumping
         ora zp_player_orientation           ; player orientation: 0: facing right, 1: facing left
-        sta sprite_0_pointer
+;;;        sta sprite_0_pointer
+        jsr updateHarrySpriteF256       ; TODO, EXPERIMENTAL
         rts
 
 l82ab
@@ -939,17 +947,19 @@ set_player_sprite_climbing
         lda zp_player_y_pos                 ; get lowest bit of Harry y-position
         and #$01                            ; (decides on phase of climbing sprite)
         sta zp_or_mask2                     ; climbing phase
-        lda #$2e                            ; sprite id: Harry climbing, phase 0
+        lda #SPRITE_ID_PLAYER_CLIMBING      ; sprite id: Harry climbing, phase 0
         ora zp_or_mask2                     ; modify climbing phase
-        sta sprite_0_pointer                ; update Harry's sprite pointer
+;;;        sta sprite_0_pointer                ; update Harry's sprite pointer
+        jsr updateHarrySpriteF256       ; TODO, EXPERIMENTAL
         rts
 
 
 l832f
 move_on_vine
-        lda #$2c                            ; sprite id: Harry swinging on vine (facing right)
+        lda #SPRITE_ID_PLAYER_ON_VINE       ; sprite id: Harry swinging on vine (facing right)
         ora zp_player_orientation           ; player orientation: 0: facing right, 1: facing left
-        sta sprite_0_pointer                ; set Harry sprite to swinging
+;;;        sta sprite_0_pointer                ; set Harry sprite to swinging
+        jsr updateHarrySpriteF256       ; TODO, EXPERIMENTAL
         jsr get_player_at_vine_x_pos
         sta zp_player_x_pos
         lda #Y_POS_PLAYER_VINE_ANCHOR       ; ($5c) y position of Harry at vine anchor (theoretical value)
@@ -966,10 +976,11 @@ _player_lets_go_of_vine                 ; Harry lets go of the swinging vine
         bcc _player_jump_off_vine_vertical  ; jump off vine straight down
 _player_jump_off_vine_directional
 _l834d
-        lda #$2c                            ; sprite id: Harry swinging on vine (facing right)
+        lda #SPRITE_ID_PLAYER_ON_VINE       ; sprite id: Harry swinging on vine (facing right)
         sec
         sbc zp_vine_swing_side              ; 0: vine swings on right side, 1: left side. BUG? should be adc?
-        sta sprite_0_pointer                ; BUG? sprite either "swing right" or "stand left"
+;;;        sta sprite_0_pointer                ; BUG? sprite either "swing right" or "stand left"
+        jsr updateHarrySpriteF256       ; TODO, EXPERIMENTAL
         lda #$00                            ; start a directional jump
         sta zp_not_directional_jump         ; 0: directional jump or swinging, >0: otherwise
         sta zp_at_vine                      ; harry lets go of the swinging vine
@@ -1145,7 +1156,7 @@ scorpion_move_left
 _no_underflow
         and #$02                            ; position bit 1: animation phase
         lsr                                 ; convert to phase 0 or 1
-        ora #$3c                            ; sprite id: scorpion left (phase 0)
+        ora #SPRITE_ID_SCORPION_LEFT+0      ; sprite id: scorpion left (phase 0)
         sta zp_scorpion_sprite_id
         rts
 
@@ -1789,7 +1800,8 @@ l87cf
         ldx #$1c
 _start_next_life_underground
         lda #SPRITE_ID_PLAYER_JUMPING
-        sta sprite_0_pointer
+;;;        sta sprite_0_pointer
+        jsr updateHarrySpriteF256       ; TODO, EXPERIMENTAL
         lda #$1e
         sta zp_player_x_pos
         lda #$00
@@ -1802,7 +1814,7 @@ _start_next_life_underground
         sta zp_scorpion_x_pos+1             ; reset scorpion to make player safe
         lda #X_POS_SCORPION_START           ; scorpion: start x-pos
         sta zp_scorpion_x_pos
-        lda #$3b                            ; sprite id: scorpion right (phase 1)
+        lda #SPRITE_ID_SCORPION_RIGHT+1     ; sprite id: scorpion right (phase 1)
         sta zp_scorpion_sprite_id
 
 loop_drop_harry_into_jungle
@@ -1822,7 +1834,8 @@ loop_drop_harry_into_jungle
         cpx #$07                            ; last seven iterations reached?
         bne _skip_change_sprite             ; no
         lda #SPRITE_ID_PLAYER_LIFE          ; change sprite from "jumping" to "standing"
-        sta sprite_0_pointer
+;;;        sta sprite_0_pointer
+        jsr updateHarrySpriteF256       ; TODO, EXPERIMENTAL
 _skip_change_sprite
         dex
         bne loop_drop_harry_into_jungle
@@ -2464,19 +2477,21 @@ l8c0a
         lda #$20
         sta zp_score_100
         sta zp_minutes
-.comment
         lda #SPRITE_ID_PLAYER_STANDING_0    ; sprite id: Harry standing right
-        sta sprite_0_pointer
-.endcomment
+;;;        sta sprite_0_pointer
+        jsr updateHarrySpriteF256       ; TODO, EXPERIMENTAL
         lda #$00
         sta zp_player_x_pos+1
         lda #$1e
         sta zp_player_x_pos
         lda #Y_POS_JUNGLE_GROUND
         sta zp_player_y_pos
-        jsr print_score_and_timer       ; TODO: FOENIX DEBUG REMOVE
-        jsr update_lives_indicator      ; TODO: FOENIX DEBUG REMOVE
+        ldx #$01                            ; TODO: FOENIX DEBUG REMOVE: move one rooms (underground tunnel)
+        ;;; jsr loop_move_room_left             ; TODO: FOENIX DEBUG REMOVE (move to room on the left)
+        ;;; jsr loop_move_room_right        ; TODO: FOENIX DEBUG REMOVE (move to room on the right)
         jsr init_scene
+        jsr updateSpritePositionsF256       ; TODO, EXPERIMENTAL: move to interrupt routine
+        jsr updateScorpionSpriteF256        ; TODO, EXPERIMENTAL: move to interrupt routine
 
         jsr print_score_and_timer
         jsr update_lives_indicator
@@ -2679,38 +2694,6 @@ _draw_passage_loop
         lda #CHAR_UNDERGROUND_FLOOR     ; tile: underground passage floor (brown)
         jsr draw_tile_row
 
-.comment
-        ldx #$4f                        ; iterate over two rows of character graphics
-_loop_draw_jungle_ground
-        lda #CHAR_SURFACE_FLOOR         ; char: solid (multi color 2)
-        sta screenRAM+$0230,x           ; draw jungle ground (upper) (yellow)
-        lda #CHAR_SURFACE_EARTH
-        sta screenRAM+$0280,x           ; draw jungle ground (lower) (red)
-        lda #COLOR_LIGHTRED             ; display character as multi color (%11 = light red)
-        sta ColorRAM+$0280,x            ; set color for jungle ground (lower)
-        dex
-        bpl _loop_draw_jungle_ground
-
-        ; draw underground cavern (black background color area)
-
-        ldx #$a0                        ; iterate over four rows of character graphics
-        lda #$00                        ; char: background color (multi color 0)
-_loop_draw_underground_cavern
-        sta screenRAM+$02cf,x           ; underground cavern (black) (line 18 - 21)
-        sta screenRAM+$0320,x           ; underground cavern (black) (line 20 - 23)
-        dex
-        bne _loop_draw_underground_cavern
-
-        ; draw underground floor (brown row at bottom)
-
-        ldx #$27                        ; iterator: draw 40 characters
-        lda #CHAR_UNDERGROUND_FLOOR     ; char: solid (multi color 1)
-_loop_draw_underground_floor
-        sta screenRAM+$0370,x           ; underground floor (row 22)
-        dex
-        bpl _loop_draw_underground_floor
-.endcomment
-
         ; initialize rolling logs and scorpion
 
         lda #$00                            ; clear 10 zero page variables:
@@ -2721,9 +2704,7 @@ _loop_init_object_coords
         bne _loop_init_object_coords        ; BUG: does not init zp_log_0_x_pos itself!
 
         sta zp_blocked_by_wall              ; 0: not blocked, >=$80 blocked by wall, bit 1: orientation
-.comment
-        sta VicSpriteToSpriteCol            ; turn off sprite-to-sprite collisions
-.endcomment
+        ;;; sta VicSpriteToSpriteCol            ; turn off sprite-to-sprite collisions
 
         ; draw central hole, ladder and underground wall (if included in the scene)
 
@@ -2732,9 +2713,6 @@ _loop_init_object_coords
         bcc _draw_center_hole_and_ladder    ; scene < 2:  holes in the ground
         jmp init_scorpion                   ; scene >= 2: scorpion enabled
 _draw_center_hole_and_ladder
-.if DO_BUGFIX == false
-        lda #$39                            ; (ignored, can be removed?)
-.endif
 
         ; draw the center hole
 
@@ -2777,10 +2755,6 @@ _skip_brick_wall
         bne _loop_draw_ladder_and_wall
 
 
-_break
-        jmp _break
-
-
         ; draw additional holes left and right (if included in the scene)
 
         lda zp_scene_type                   ; examine scene
@@ -2795,12 +2769,12 @@ _break
         ldy #COL_HOLE_RIGHT                 ; hole position (column): right ($1c)
         jsr draw_hole                       ; draw right hole
 
-        bne init_skip_scorpion_quicksand    ; (always) skip scorpion
+        jmp init_skip_scorpion_quicksand    ; (always) skip scorpion
 
 init_scorpion
         lda #X_POS_SCORPION_START           ; scorpion: start x-pos
         sta zp_scorpion_x_pos
-        lda #SPRITE_ID_SCORPION_RIGHT       ; sprite id: scorpion right
+        lda #SPRITE_ID_SCORPION_RIGHT+1     ; sprite id: scorpion right
         sta zp_scorpion_sprite_id
 
         ; init quicksand
@@ -2821,6 +2795,10 @@ init_skip_scorpion_quicksand
         jmp init_crocodiles                 ; yes -> initialize crocodiles
 
 init_skip_crocodiles
+
+;_break
+;        jmp _break
+
         txa                                 ; zp_scene_type
         and #$03                            ; if scene_type AND 3 == 3: blue pit
         cmp #$03                            ; pit color is blue?
@@ -2836,9 +2814,11 @@ _no_tar_pit
         bne init_treasure_rts               ; treasure already collected -> (rts)
 
 _init_skip_treasure
+.comment
 _wait_raster_offscreen
         lda VicScreenCtrlReg1               ; wait for MSB raster line = 1
         bpl _wait_raster_offscreen          ; MSB raster = 0? ->
+.endcomment
 
         ; init objects like rolling/static logs, fire, snake
 
@@ -3074,6 +3054,7 @@ draw_hole
 
 l8f64
 objects_set_sprite_id_and_color         ; parameters: A: sprite ID, Y: sprite color
+.comment
         ldx #$02
 _loop_over_three_sprites
         sta sprite_3_pointer,x              ; set sprite pointer
@@ -3083,6 +3064,8 @@ _loop_over_three_sprites
         pla
         dex
         bpl _loop_over_three_sprites
+.endcomment
+        jsr updateObjectSpritesF256     ; EXPERIMENTAL F256
         rts
 
 randomize_jungle

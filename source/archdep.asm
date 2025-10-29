@@ -708,6 +708,192 @@ numberSpriteYPositions
         .word 54,54,54,54,54            ; minutes, seconds, colon
         .word 42,42                     ; life indicator
 
+
+updateObjectSpritesF256
+        ; update object sprites like crocodiles, rolling logs, snake, fire, treasure
+        ; A: sprite ID (C64)
+        ; Y: color (if applicable)
+
+        pha
+        phx
+        phy
+
+        sec                             ; translate C64 sprite to F256 sprite
+        sbc #SPRITE_ID_PLAYER_RUNNING
+
+        cmp #(SPRITE_ID_ROLLING_LOG_0-SPRITE_ID_PLAYER_RUNNING)
+        bcc _skip
+        sbc #2                          ; used on C64 for life indicator
+_skip
+
+        ldy #$00
+        tax
+_updateObjectSpritesL
+        clc
+        lda spritedata_ptr_lb,x
+        adc #<mainSpritesF256
+        sta VKY_SP0_AD_L+SPRITE_ID_OBJECTS*8,y  ; sprite address register, low byte
+        lda spritedata_ptr_hb,x
+        adc #>mainSpritesF256
+        sta VKY_SP0_AD_M+SPRITE_ID_OBJECTS*8,y
+        lda #$01
+        sta VKY_SP0_AD_H+SPRITE_ID_OBJECTS*8,y
+
+        tya
+        clc
+        adc #$08                        ; next set of sprite registers
+        tay
+        cpy #3*8
+        bne _updateObjectSpritesL
+
+
+        ply
+        plx
+        pla
+        rts
+
+
+updateScorpionSpriteF256
+        ; update object sprite for scorpion
+        ; A: sprite ID (C64)
+
+        pha
+        phx
+
+        lda zp_scorpion_sprite_id
+        sec                             ; translate C64 sprite to F256 sprite
+        sbc #(SPRITE_ID_PLAYER_RUNNING+2)
+        tax
+
+        clc
+        lda spritedata_ptr_lb,x
+        adc #<mainSpritesF256
+        sta VKY_SP0_AD_L+SPRITE_ID_SCORPION*8   ; sprite address register, low byte
+        lda spritedata_ptr_hb,x
+        adc #>mainSpritesF256
+        sta VKY_SP0_AD_M+SPRITE_ID_SCORPION*8
+        lda #$01
+        sta VKY_SP0_AD_H+SPRITE_ID_SCORPION*8
+
+        plx
+        pla
+        rts
+
+
+updateHarrySpriteF256
+        ; update object sprite for scorpion
+        ; A: sprite ID (C64)
+
+        pha
+        phx
+
+        sec                             ; translate C64 sprite to F256 sprite
+        sbc #SPRITE_ID_PLAYER_RUNNING
+        tax
+
+        clc
+        lda spritedata_ptr_lb,x
+        adc #<mainSpritesF256
+        sta VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
+        lda spritedata_ptr_hb,x
+        adc #>mainSpritesF256
+        sta VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+        lda #$01
+        sta VKY_SP0_AD_H+SPRITE_ID_HARRY*8
+
+        plx
+        pla
+        rts
+
+
+updateSpritePositionsF256
+        ; Update all sprite positions that change during game play.
+        ; To be called within each screen update.
+
+        pha
+        phx
+        phy
+
+        ldx #$00
+        ldy #SPRITE_ID_OBJECTS * 8       ; offset to sprite registers for first object
+_updateSpritePosL
+        phx
+        txa
+        asl
+        tax
+        lda zp_log_0_x_pos+0,x          ; x-coordinate, low byte
+        clc
+        adc #$08                        ; adjust for different X offset on F256 vs C64
+        sta VKY_SP0_POS_X_L,y
+        lda zp_log_0_x_pos+1,x          ; x-coordinate, high byte
+        adc #$00
+        sta VKY_SP0_POS_X_H,y
+
+        plx
+        lda zp_log_0_y_pos+0,x          ; y-coordinate, low byte
+        sec
+        sbc #$12                        ; adjust for different Y offset on F256 vs C64
+        sta VKY_SP0_POS_Y_L,y
+        lda #$00                        ; y-coordinate, high byte
+        sta VKY_SP0_POS_Y_H,y
+        lda #%00100001                  ; size: 24x24, layer 0, LUT 0, Enable
+        sta VKY_SP0_CTRL,y              ; enable sprite
+        tya
+        clc
+        adc #$08
+        tay
+        inx
+        cpx #$03
+        bne _updateSpritePosL
+
+        ; update scorpion
+        ; y = SPRITE_ID_SCORPION*8
+
+        ldy #SPRITE_ID_SCORPION * 8
+        lda zp_scorpion_x_pos+0         ; x-coordinate, low byte
+        clc
+        adc #$08                        ; adjust for different X offset on F256 vs C64
+        sta VKY_SP0_POS_X_L,y
+        lda zp_scorpion_x_pos+1         ; x-coordinate, high byte
+        adc #$00
+        sta VKY_SP0_POS_X_H,y
+
+        lda #$d9-$12                    ; scorpion y position
+        sta VKY_SP0_POS_Y_L,y
+        lda #$00                        ; y-coordinate, high byte
+        sta VKY_SP0_POS_Y_H,y
+
+        lda #%00100001                  ; size: 24x24, layer 0, LUT 0, Enable
+        sta VKY_SP0_CTRL,y              ; enable sprite
+
+        ; update Pitfall Harry
+        ; y = SPRITE_ID_HARRY * 8
+
+        ldy #SPRITE_ID_HARRY * 8
+        lda zp_player_x_pos+0           ; Harry's x-coordinate, low byte
+        clc
+        adc #$08                        ; adjust for different X offset on F256 vs C64
+        sta VKY_SP0_POS_X_L,y
+        lda zp_player_x_pos+1           ; x-coordinate, high byte
+        adc #$00
+        sta VKY_SP0_POS_X_H,y
+
+        lda zp_player_y_pos             ; Harry's y-coordinate
+        sec
+        sbc #$12                        ; adjust for different Y offset on F256 vs C64
+        sta VKY_SP0_POS_Y_L,y
+        lda #$00                        ; y-coordinate, high byte
+        sta VKY_SP0_POS_Y_H,y
+
+        lda #%00100001                  ; size: 24x24, layer 0, LUT 0, Enable
+        sta VKY_SP0_CTRL,y              ; enable sprite
+
+        ply
+        plx
+        pla
+        rts
+
+
 .comment
         ldy #$00                        ; iterator
 _initSpriteL
@@ -1503,6 +1689,16 @@ tilemap_line_ptr_lb
 tilemap_line_ptr_hb
         .for row in range(25)
         .byte >(row * 42 * 2 + 2) & $ff00
+        .endfor
+
+spritedata_ptr_lb
+        .for sprite_id in range(33)
+        .byte <(sprite_id * 24 * 24) & $00ff
+        .endfor
+
+spritedata_ptr_hb
+        .for sprite_id in range(33)
+        .byte >(sprite_id * 24 * 24) & $ff00
         .endfor
 
 
