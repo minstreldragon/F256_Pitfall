@@ -29,24 +29,17 @@ VIA_60_HZ_TIMER_INTERVAL = 52344
 
 ; architecture specific constants
 
-KEY_ENTER = $8d
-;KEY_NORTH = $c0                 ; '@' (North)
-;KEY_SOUTH = $af                 ; '/' (South)
-;KEY_EAST = $bb                  ; ';' (East)
-;KEY_WEST = $ba                  ; ':' (West)
-KEY_NORTH = $b8                 ; '@' (North) F256Jr
-KEY_NORTH_ALT = $90             ; '@' (North) F256K
-KEY_SOUTH = $b2                 ; '/' (South) F256Jr
-KEY_SOUTH_ALT = $8e             ; '/' (South) F256K
-KEY_EAST = $b6                  ; ';' (East)  F256Jr
-KEY_EAST_ALT = $86              ; ';' (East)  F256K
-KEY_WEST = $b4                  ; ':' (West)  F256Jr
-KEY_WEST_ALT = $82              ; ':' (West)  F256K
-KEY_RETURN = $8d                ; return key
-;KEY_BACKSPACE = $ab             ; Key combination: C= + Q
-KEY_BACKSPACE = $88             ; Key combination: C= + Q
-KEY_ESCAPE = $df                ; RUN/STOP key
-KEY_ARROW_UP = KEY_NORTH
+KEY_JOY_UP = $10                ; arrow up
+KEY_JOY_DOWN = $0e              ; arrow down
+KEY_JOY_LEFT = $02              ; arrow left
+KEY_JOY_RIGHT = $06             ; arrow right
+KEY_JOY_FIRE = $20                  ; space
+
+JOYSTICK_MASK_UP    = %11111110
+JOYSTICK_MASK_DOWN  = %11111101
+JOYSTICK_MASK_LEFT  = %11111011
+JOYSTICK_MASK_RIGHT = %11110111
+JOYSTICK_MASK_FIRE  = %11101111
 
 numberSpritesF256 = $4000
 mainSpritesF256 = $5000

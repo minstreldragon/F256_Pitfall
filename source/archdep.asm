@@ -109,7 +109,6 @@ initF256                                ; initialize F256
         jsr initSpritesF256
         jsr initNumberSpritesF256
 
-.comment
 .if FOENIX_IDE
         ; schedule the first frame timer        ; Foenix IDE workaround
         lda #kernel.args.timer.FRAMES | kernel.args.timer.QUERY
@@ -118,9 +117,8 @@ initF256                                ; initialize F256
         sta frames
         jsr schedule_frame
 .else
-        jsr setupLodeRunnerIrq       ; Disabled for Foenix IDE workaround
+        jsr setupPitfallIrq             ; Disabled for Foenix IDE workaround
 .endif
-.endcomment
 
         rts
 
@@ -191,6 +189,12 @@ event_key_pressed
         jmp _exit
 
 _key_pressed_j1
+        pha                             ; joystick over keyboard handling
+        jsr key_to_joystick_byte        ; convert to joystick port mask
+        and joystickKbdCode             ; modify existing code
+        sta joystickKbdCode             ; store back in joystickKbdCode variable
+        pla
+
         cmp #$60                        ; upper case?
         bcc _key_pressed_j2             ; yes ->
         sec
@@ -201,8 +205,6 @@ _key_pressed_j2
         clc
         adc #KEY_CODE_CTRL+KEY_CODE_A-1 ; convert to <CTRL>-letter for game
 _key_pressed_j3
-
-
         sta keyboardCode
         ; TODO: do something with key code
 _exit
@@ -210,7 +212,7 @@ _exit
 
 event_key_released
         lda event.key.ascii
-        bne _exit
+        bne _key_pressed
         bit event.key.flags             ; modifier event?
         bpl _exit                       ; not a modifier
         lda event.key.raw
@@ -220,8 +222,49 @@ event_key_released
         bcs _exit
         lda #$00
         sta ctrl_active
+        bne _exit
+
+_key_pressed
+        pha                             ; joystick over keyboard handling
+        jsr key_to_joystick_byte        ; convert to joystick port mask
+        eor #$ff                        ; invert port mask
+        ora joystickKbdCode             ; modify existing code
+        sta joystickKbdCode             ; store back in joystickKbdCode variable
+        pla
 _exit
         rts
+
+key_to_joystick_byte
+        phx
+        ldx #$00
+        cmp #KEY_JOY_UP
+        beq _found
+        inx
+        cmp #KEY_JOY_DOWN
+        beq _found
+        inx
+        cmp #KEY_JOY_LEFT
+        beq _found
+        inx
+        cmp #KEY_JOY_RIGHT
+        beq _found
+        inx
+        cmp #KEY_JOY_FIRE
+        beq _found
+        lda #$ff
+        bne _exit
+_found
+        lda key_to_joy_masks,x
+_exit
+        plx
+        rts
+
+key_to_joy_masks
+        .byte JOYSTICK_MASK_UP
+        .byte JOYSTICK_MASK_DOWN
+        .byte JOYSTICK_MASK_LEFT
+        .byte JOYSTICK_MASK_RIGHT
+        .byte JOYSTICK_MASK_FIRE
 
 event_file_opened
         inc file_opened
@@ -1386,114 +1429,34 @@ _moveKernelToRamL1
 _mmuMemCtrlValues
         .byte $b3,$a3,$93,$83
 
-
-installCustomIsr
-        ldx #customIsrEnd-(customIsr+1)
-_copyL
-        lda customIsr,x
-        sta customIsrAddr,x
-        dex
-        bpl _copyL
-
-        lda IRQVEC+0
-        sta vIrqOriginal+0              ; original Kernel IRQ handler
-        lda IRQVEC+1
-        sta vIrqOriginal+1              ; original Kernel IRQ handler
-
-        lda #<customIsrAddr
-        sta IRQVEC+0
-        lda #>customIsrAddr
-        sta IRQVEC+1
-
-        rts
-
 .endcomment
 
 
 customIsr
-;;.logical customIsrAddr
         pha                     ; save registers a,x,y
         txa
         pha
         tya
         pha
 
-.comment
-        lda MMU_IO_CTRL         ; store current MMU I/O control register
-        pha
-        lda MMU_MEM_CTRL        ; store current MMU configuration
-        sta _restoreMmuConfig+1 ; can't use pha since zero page may be paged
-
-        lda #$03                ; switch to MLUT3 containing the user code
-        sta MMU_MEM_CTRL
-        lda #$00                ; enable I/O page #0 (Interrupt controller, SID)
-        sta MMU_IO_CTRL
-
-        lda #$40
-        bit VIA_IFR
-        beq _irqMusicSkip       ; if it's zero, exit the handler
-
-        ; save current MMU configuration for banks 4 and 5
-        lda #$b3                ; active MLUT = 3, Edit MLUT #3
-        sta MMU_MEM_CTRL
-        lda MMU_MEM_BANK_4      ; MMU Edit Register for bank 4 ($8000 - $9FFF)
-        pha
-        lda MMU_MEM_BANK_5      ; MMU Edit Register for bank 5 ($A000 - $BFFF)
-        pha
-
-        ; set standard user MLUT banks
-        lda #$08>>1
-        sta MMU_MEM_BANK_4      ; MMU Edit Register for bank 4 ($8000 - $9FFF)
-        lda #$0a>>1
-        sta MMU_MEM_BANK_5      ; MMU Edit Register for bank 5 ($A000 - $BFFF)
-        lda #$03                ; switch to MLUT3 containing the user code
-        sta MMU_MEM_CTRL
-.endcomment
-
         dec viaDelay
 .if !FOENIX_IDE
-        bpl _skipIrq         ; Disabled for Foenix IDE workaround
+        bpl _skipIrq                    ; Disabled for Foenix IDE workaround
 .endif
         lda viaDelayFactor
         sta viaDelay
-;        jsr irqHandler          ; handle Lode Runner IRQ
+        jsr irq_handler                 ; handle Pitfall IRQ
 
 _skipIrq
-        ; restore MMU configuration for banks 4 and 5
-.comment
-        lda #$b3                ; active MLUT = 3, Edit MLUT #3
-        sta MMU_MEM_CTRL
-        pla
-        sta MMU_MEM_BANK_5      ; MMU Edit Register for bank 5 ($A000 - $BFFF)
-        pla
-        sta MMU_MEM_BANK_4      ; MMU Edit Register for bank 4 ($8000 - $9FFF)
-        lda #$03                ; switch to MLUT3 containing the user code
-        sta MMU_MEM_CTRL
-
-        lda VIA_T1C_L           ; clear timer1 interrupt flag
-        lda #INT15_VIA          ; VIA interrupt flag
-        sta INT_PEND_1          ; clear the flag for the VIA IRQ
-
-_irqMusicSkip
-_restoreMmuConfig
-        lda #$42                ; restore previous MMU configuration (self modified)
-        sta MMU_MEM_CTRL
-        pla                     ; restore previous MMU I/O control register
-        sta MMU_IO_CTRL
-.endcomment
-        pla                     ; restore registers y,x,a
+        pla                             ; restore registers y,x,a
         tay
         pla
         tax
         pla
-vIrqOriginal = * + 1
-;;;        jmp $c0de               ; chain original IRQ-routine
         rts
 
 viaDelay
         .byte $00
-;;.endlogical
-customIsrEnd
 
 
 copyMemory
@@ -1546,12 +1509,10 @@ enableViaTimerIrq
         sta INT_PEND_1                  ; EXPERIMENTAL: clear the flag for the VIA IRQ
         rts
 
-setupLodeRunnerIrq
+setupPitfallIrq
         jsr setDelayFactor              ; set VIA timer delay factor according to machine type
         jsr initViaTimer
         sei
-;;;        jsr moveKernelToRam
-;;;        jsr installCustomIsr
         jsr enableViaIrq
         jsr enableViaTimerIrq
         cli
@@ -1577,8 +1538,14 @@ viaDelayFactor
 joystickCode                            ; joystick code (no key: $ff)
         .byte $ff
 
+joystickKbdCode                         ; joystick code from keyboard
+        .byte $ff
+
 keyboardCode                            ; keyboard matrix code (no key: $00)
         .byte $00
+
+irqFrameCounter
+        .byte $00                       ; irq frame counter
 
 
 get_lineptr_tilemap_bg

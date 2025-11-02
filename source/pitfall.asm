@@ -18,6 +18,7 @@ COLOR_LIGHTBLUE = $0e
 COLOR_LIGHTGREY = $0f
 
 CHAR_BLACK = $00
+CHAR_TRANSPARENT = $00
 CHAR_SURFACE_FLOOR = $02
 CHAR_SURFACE_EARTH = $03
 CHAR_UPPER_TRANSITION = $04
@@ -244,6 +245,8 @@ quicksand_screen_data = $1000
 screenRAM = $4000
 vic_base = $4000
 screen_scroll_text = screenRAM + $3c0
+
+.comment
 sprite_0_pointer = $43f8
 sprite_1_pointer = $43f9
 sprite_2_pointer = $43fa
@@ -252,6 +255,7 @@ sprite_4_pointer = $43fc
 sprite_5_pointer = $43fd
 sprite_6_pointer = $43fe
 sprite_7_pointer = $43ff
+.endcomment
 
 sprite_data_ram = vic_base + $0800
 character_set_ram = $6000
@@ -442,9 +446,7 @@ _loop_init_SID
 
         jsr init_game
 
-the_end
-        jmp the_end
-
+.comment
         lda zp_initialized                  ; 0: cold start, 1: game initialized, restart
         bne _skip_wait_for_f1
         jsr display_scroll_text             ; scroll copyright text until player presses F1
@@ -456,6 +458,7 @@ _wait_for_joystick_input
         and #$0f                            ; extract joystick directions
         cmp #$0f                            ; any direction selected?
         beq _wait_for_joystick_input        ; no -> continue waiting, don't start game just yet
+.endcomment
 
         lda zp_ntsc_pal
         sta zp_frame_counter                ; counts down number of frames in a second
@@ -465,24 +468,46 @@ _wait_for_joystick_input
         sta zp_minutes                      ; minutes = $20
 
 l8078
+        lda irqFrameCounter
+        sta last_irq_counter
+        lda #5
+        sta game_loop_delay
 game_loop
+        jsr handleEvents                    ; F256: handle pending events
+        lda irqFrameCounter
+        cmp last_irq_counter
+        beq game_loop
+        sta last_irq_counter
+        dec game_loop_delay
+        bne game_loop
+        lda #5
+        sta game_loop_delay
+
         jsr player_move
-        jsr sound_handler                   ; handle playback of sound effects
-        jsr swinging_vine_move              ; move/update the swinging vine
+
+        jsr updateSpritePositionsF256       ; TODO, EXPERIMENTAL: move to interrupt routine
+        jsr updateScorpionSpriteF256        ; TODO, EXPERIMENTAL: move to interrupt routine
+        jsr update_lives_indicator          ;  TODO, EXPERIMENTAL: move to interrupt routine
+
+        lda sprite_3_pointer                ; TODO, EXPERIMENTAL set sprite pointer
+        jsr objects_set_sprite_id_and_color ; TODO, EXPERIMENTAL set id and color for sprites 3,4,5
+
+;;;;        jsr sound_handler                   ; handle playback of sound effects
+;;;;        jsr swinging_vine_move              ; move/update the swinging vine
 
         lda zp_jump_index                   ; 0: not jumping, >0: jump index, counting up
         beq _game_loop_skip_1
         jsr player_move
-        jsr sound_handler
+;;;;        jsr sound_handler
 _game_loop_skip_1
         jsr objects_move                    ; move/update objects:
                                             ; scorpion, crocodiles, quicksand, rolling logs
-        jsr check_hazards
+;;;        jsr check_hazards
 
         lda zp_jump_index                   ; 0: not jumping, >0: jump index, counting up
         beq _game_loop_skip_2
         jsr player_move
-        jsr sound_handler
+;;;;        jsr sound_handler
 _game_loop_skip_2
         jsr print_score_and_timer
 
@@ -490,8 +515,8 @@ _game_loop_skip_2
         beq _game_loop_skip_3
         jsr player_move
 _game_loop_skip_3
-        jsr sound_handler
-        jsr handle_pause_game               ; handle RUN/STOP and pause the game accordingly
+;;;;        jsr sound_handler
+;;;;        jsr handle_pause_game               ; handle RUN/STOP and pause the game accordingly
 
         lda zp_minutes                      ; running out of time?
         ora zp_seconds                      ; (minutes == seconds == 0)
@@ -501,6 +526,8 @@ _game_loop_skip_3
         jsr display_scroll_text             ; scroll copyright text until player presses F1
         jmp warm_start
 
+last_irq_counter
+    .byte $00
 
 l80b7
 player_move
@@ -684,9 +711,11 @@ _calc_next_room
         lda player_x_start_pos_hb,x
         sta zp_player_x_pos+1               ; set x start pos hb for new room
 
+.comment
 _wait_vertical_blanking
         lda VicScreenCtrlReg1               ; wait for MSB raster line = 1
         bpl _wait_vertical_blanking
+.endcomment
 
         lda #$00
         sta zp_collision_surface            ; sprite-to-sprite collisions on surface level
@@ -1130,6 +1159,7 @@ crocodile_handle_jaws
         sta sprite_3_pointer
         sta sprite_4_pointer
         sta sprite_5_pointer
+        jsr updateObjectSpritesF256     ; EXPERIMENTAL F256
         lda #$00
         sta zp_crocodile_timer
 _exit
@@ -1296,9 +1326,7 @@ _loop_move_rolling_log
         sec                                 ; dec. high bit
         sbc #$01
         bpl _skip_reset_rolling_log         ; no underflow ->
-_wait_vertical_blanking
-        lda VicScreenCtrlReg1               ; wait for MSB raster line = 1
-        bpl _wait_vertical_blanking
+
         lda #$5e                            ; reset rolling log x position to $015e
         sta @w $0000,y                      ; log (y) x pos (lb)
         lda #$01
@@ -1753,7 +1781,7 @@ _return
 
 harry_dies
 l8792
-        pha
+        pha                                 ; kind of death ($18: drowning, $00: anything else)
         lda #$00
         sta zp_collision_surface            ; sprite-to-sprite collisions on surface level
         sta zp_collision_scorpion           ; 0: no collision, 1: collision with scorpion
@@ -1776,10 +1804,12 @@ _loop_player_drowns
         jsr setup_sprite_data
         jsr print_score_and_timer
 _wait_death_tune_finished
+.comment
         ldy #$00
         lda (zp_tune_ptr),y                 ; current tune data byte
         cmp #END_OF_TUNE                    ; end of tune reached?
         bne _wait_death_tune_finished       ; no -> continue waiting
+.endcomment
 
         dec zp_lives                        ; # of lives left, including current
         bne start_next_life                 ; at least one life left -> start next life
@@ -1846,6 +1876,7 @@ _skip_change_sprite
 
 animate_drown_one_line
 l8823
+        rts                             ; TODO, IMPLEMENT for F256
         lda #>vic_base+$2a*$40              ; data for sprite $2a: Harry standing facing right
 ;;    lda #>$4a80                         ; data for sprite $2a: Harry standing facing right
         sta zp_src+1
@@ -2083,12 +2114,14 @@ l89c5
         asl                                 ; tune id as address offset
         tax
 
+.comment
 _wait_raster_40
         lda VicScreenCtrlReg1               ; wait for MSB raster line = 0
         bmi _wait_raster_40                 ; MSB raster = 1? ->
         lda VicRasterValue
         cmp #$40                            ; raster line = $040?
         bne _wait_raster_40                 ; no ->
+.endcomment
 
         lda tune_start_table+0,x            ; tune start address (lb)
         sta zp_tune_ptr+0                   ; tune data pointer (lb)
@@ -2183,8 +2216,10 @@ read_run_stop_key                       ; read keyboard, check for RUN/STOP (C =
 
 
 read_joystick
-        lda Cia1PortB                       ; read joystick 1 from CIA 1 Port B
-        and #$1f                            ; mask out joystick direction and fire bits
+;;;        lda Cia1PortB                       ; read joystick 1 from CIA 1 Port B
+        lda joystickCode
+        and joystickKbdCode             ; EXPERIMENTAL, F256: allow keyboard control
+        and #$1f                        ; mask out joystick direction and fire bits
         rts
 
 
@@ -2486,12 +2521,7 @@ l8c0a
         sta zp_player_x_pos
         lda #Y_POS_JUNGLE_GROUND
         sta zp_player_y_pos
-        ldx #$01                            ; TODO: FOENIX DEBUG REMOVE: move one rooms (underground tunnel)
-        ;;; jsr loop_move_room_left             ; TODO: FOENIX DEBUG REMOVE (move to room on the left)
-        ;;; jsr loop_move_room_right        ; TODO: FOENIX DEBUG REMOVE (move to room on the right)
         jsr init_scene
-        jsr updateSpritePositionsF256       ; TODO, EXPERIMENTAL: move to interrupt routine
-        jsr updateScorpionSpriteF256        ; TODO, EXPERIMENTAL: move to interrupt routine
 
         jsr print_score_and_timer
         jsr update_lives_indicator
@@ -2499,7 +2529,8 @@ l8c0a
         sta zp_player_run_animation         ; Harry running animation phase (0-4)
         inc zp_vine_x_delta_absolute        ; delta x position relative to middle
         sta zp_vine_swing_side              ; 0: vine swings on right side, 1: left side
-        jsr draw_swinging_vine_sprites
+        ;;; jsr draw_swinging_vine_sprites  ; TODO: Implement on F256
+.comment
         lda #$1b                            ; text mode, screen on, 25 rows, vert scroll: 3
         sta VicScreenCtrlReg1               ; set control register #1 ($d011)
 
@@ -2514,6 +2545,7 @@ _wait_visible_screen
         sta VicRasterValue                  ; raster line to generate interrupt at (bits 0-7)
         lda #$81                            ; Raster interrupt enabled
         sta VicIrqCtrlReg                   ; enable raster interrupts
+.endcomment
         cli
         rts
 
@@ -2795,10 +2827,6 @@ init_skip_scorpion_quicksand
         jmp init_crocodiles                 ; yes -> initialize crocodiles
 
 init_skip_crocodiles
-
-;_break
-;        jmp _break
-
         txa                                 ; zp_scene_type
         and #$03                            ; if scene_type AND 3 == 3: blue pit
         cmp #$03                            ; pit color is blue?
@@ -2847,6 +2875,7 @@ _loop_set_log_y_pos
         bne _loop_set_log_y_pos
 
         ldx zp_objects
+.comment
         cpx #$07                            ; object = snake?
         bne _skip_objects_are_hires         ; BUG: fire should be multi-color, potentially also log
         lda VicSpriteMulticolor
@@ -2854,6 +2883,7 @@ _loop_set_log_y_pos
         sta VicSpriteMulticolor
 
 _skip_objects_are_hires
+.endcomment
         lda object_color_table,x            ; get color for object type
         tay
         lda object_sprite_id_table,x
@@ -3054,17 +3084,17 @@ draw_hole
 
 l8f64
 objects_set_sprite_id_and_color         ; parameters: A: sprite ID, Y: sprite color
-.comment
         ldx #$02
 _loop_over_three_sprites
         sta sprite_3_pointer,x              ; set sprite pointer
+.comment
         pha
         tya
         sta VicSprite3Color,x               ; set sprite color
         pla
+.endcomment
         dex
         bpl _loop_over_three_sprites
-.endcomment
         jsr updateObjectSpritesF256     ; EXPERIMENTAL F256
         rts
 
@@ -3200,6 +3230,19 @@ _draw_jungle_background_loop
 
         lda #7                          ; row 7 (transition zone)
         sta zp_row
+
+        ; clear the small branches in the foreground page
+
+        lda #0
+        sta zp_column
+        ldx #40
+        lda #CHAR_TRANSPARENT           ; clear branches from previous scene
+_loop_clear_branches_fg
+        jsr draw_tile_fg
+        dex
+        bne _loop_clear_branches_fg
+
+        ; actually draw trees
 l9029
         lda #$03                            ; iterator: # of tree trunks
         sta zp_tree_index
@@ -3681,6 +3724,36 @@ l929b
         rts
 .endcomment
 
+irq_handler
+        inc irqFrameCounter
+
+        lda zp_minutes
+        ldx zp_game_paused                  ; 0: game is not paused, 1: game is paused
+        bne _dec_time_done                  ; game paused -> don't decrease time
+        ora zp_seconds                      ; timer = 00:00?
+        beq _dec_time_done                  ; yes ->
+        dec zp_frame_counter                ; counts down number of frames in a second
+        bne _dec_time_done                  ; frames left in current second ->
+        lda zp_ntsc_pal
+        sta zp_frame_counter                ; counts down number of frames in a second
+
+        sed                                 ; decimal mode ON
+        lda zp_seconds                      ; decrement seconds
+        sec
+        sbc #$01
+        sta zp_seconds                      ; seconds >= 0?
+        bpl _dec_time_done
+        lda #$59                            ; reset seconds to 59
+        sta zp_seconds
+        lda zp_minutes                      ; decrement minutes
+        sec
+        sbc #$01
+        sta zp_minutes
+
+
+_dec_time_done
+        cld                                 ; decimal mode OFF
+        rts
 
 interrupt_raster_32
 l92d6
@@ -5127,3 +5200,23 @@ jungle_transition_chars
 
 jungle_grass_chars
         .fill 40,$00
+
+sprite_0_pointer
+    .byte $00
+sprite_1_pointer
+    .byte $00
+sprite_2_pointer
+    .byte $00
+sprite_3_pointer
+    .byte $00
+sprite_4_pointer
+    .byte $00
+sprite_5_pointer
+    .byte $00
+sprite_6_pointer
+    .byte $00
+sprite_7_pointer
+    .byte $00
+
+game_loop_delay
+    .byte $00
