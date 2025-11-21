@@ -88,6 +88,7 @@ Y_POS_UNDER_GROUND = $cf
 Y_POS_BOTTOM_OF_LADDER = $cc
 Y_POS_TREASURE = $a0                    ; y position treasure (except ring)
 Y_POS_TREASURE_RING = $a2               ; y position treasure (ring)
+Y_POS_TOP_OF_VINE = $60                 ; y position of vine sprites
 
 COL_LADDER = 19                         ; x position of ladder (in characters)
 COL_WALL_LEFT = 3                       ; x position of wall (in characters)
@@ -493,7 +494,7 @@ game_loop
         jsr objects_set_sprite_id_and_color ; TODO, EXPERIMENTAL set id and color for sprites 3,4,5
 
 ;;;;        jsr sound_handler                   ; handle playback of sound effects
-;;;;        jsr swinging_vine_move              ; move/update the swinging vine
+        jsr swinging_vine_move              ; move/update the swinging vine
 
         lda zp_jump_index                   ; 0: not jumping, >0: jump index, counting up
         beq _game_loop_skip_1
@@ -1253,6 +1254,7 @@ l849c
         beq _vine_no_delay
         dec zp_vine_delay                   ; 0: don't delay, 1: delay swinging vine
         jsr draw_swinging_vine_sprites
+.comment
         ldy #$07
         ldx #$00
 _wait_loop
@@ -1260,6 +1262,7 @@ _wait_loop
         bne _wait_loop
         dey
         bne _wait_loop
+.endcomment
         rts
 
 _vine_no_delay
@@ -3065,7 +3068,7 @@ draw_hole
         jsr draw_tile_repeat
         lda #$26                            ; right edge of hole (earth)
         jsr draw_tile_bg
-        
+
 
 .comment
         lda #CHAR_HOLE_UPPER                ; char: hole upper part
@@ -3284,7 +3287,7 @@ _use_default_tree_offset
         tax
         clc
         lda col_tree_offset_table,x         ; tree default offset
-        adc zp_tree_offset                  ; add delta position 
+        adc zp_tree_offset                  ; add delta position
         sta zp_tree_0_column,x              ; $61-$64: start column of tree trunk x
         sta zp_column
 
@@ -3508,6 +3511,37 @@ l9196
 
 
 draw_swinging_vine_sprites
+        ldx #$00                            ; clear destination buffer
+        txa
+_loop_clear_vine_sprite_data
+        sta vine_sprite_data+$0000,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0100,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0200,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0300,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0400,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0500,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0600,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0700,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0800,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0900,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0a00,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0b00,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0c00,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0d00,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0e00,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$0f00,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$1000,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$1100,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$1200,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$1300,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$1400,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$1500,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$1600,x      ; clear sprite data buffer ($0800-$0aff)
+        sta vine_sprite_data+$1700,x      ; clear sprite data buffer ($0800-$0aff)
+        dex
+        bne _loop_clear_vine_sprite_data
+
+.comment
 l919f
         ldx #$00                            ; clear destination buffer
         txa
@@ -3517,6 +3551,7 @@ _loop_clear_vine_sprite_data
         sta sprite_buffer_vine+$0200,x
         dex
         bne _loop_clear_vine_sprite_data
+.endcomment
 
         ; calculate the y-delta (extend) of the swinging vine
 
@@ -3569,7 +3604,7 @@ _no_add
 
         ; we get away with only handling 8 bits (rather than 16) because
         ; the divisor (zp_vine_y_delta) is always larger than the
-        ; factor (zp_vine_x_delta_absolute) in the multiplication above 
+        ; factor (zp_vine_x_delta_absolute) in the multiplication above
 
         ldx #$08                            ; iterator for loop (8 bits)
         sec
@@ -3615,6 +3650,39 @@ _calc_vine_x_on_right_side              ; calc x pos for vine swinging on right 
         lda zp_vine_dx                      ; dx value of swinging vine
 _set_vine_x_pos
         sta zp_vine_x                       ; vine pixel: x pos
+
+        and #$1f                        ; extract pixel position in sprite data byte
+        pha
+
+        lda zp_vine_x                   ; x position of pixel
+        lsr                             ; get sprite pointer: 16 bit offset: (y / 32) * 2
+        lsr
+        lsr
+        lsr
+        and #$fe
+        tay
+        lda sprite_field_data_col_ptr+0,y   ; line 0, column y data pointer in sprite field (lb)
+        sta zp_dst+0
+        lda sprite_field_data_col_ptr+1,y   ; line 0, column y data pointer in sprite field (hb)
+        sta zp_dst+1
+
+        ldy zp_vine_y                       ; vine pixel: y pos
+
+        clc
+        lda sprite_field_data_row_offset_lb,y
+        adc zp_dst+0
+        sta zp_dst+0
+        lda sprite_field_data_row_offset_hb,y
+        adc zp_dst+1
+        sta zp_dst+1
+
+        ply
+        lda #COL_SOLIDBLACK
+        sta (zp_dst),y
+
+
+
+.comment
         and #$07                            ; extract pixel position in sprite data byte
         tax                                 ; as index
 
@@ -3625,7 +3693,7 @@ _set_vine_x_pos
         tay
         lda sprite_field_data_col_ptr+0,y   ; line 0, column y data pointer in sprite field (lb)
         sta zp_dst+0
-        lda sprite_field_data_col_ptr+1,y   ; line 0, column y data pointer in sprite field (lb)
+        lda sprite_field_data_col_ptr+1,y   ; line 0, column y data pointer in sprite field (hb)
         sta zp_dst+1
         ldy zp_vine_y                       ; vine pixel: y pos
         tya                                 ; A = 3 * zp_vine_y
@@ -3646,6 +3714,7 @@ _set_vine_sprite_pixel
         lda (zp_dst),y                      ; read current destination byte
         ora pixel_mask_for_x_pos,x          ; set pixel in destination byte
         sta (zp_dst),y                      ; write back destination byte
+.endcomment
 
         ldy zp_vine_y
         dey                                 ; vine y: move one pixel up
@@ -3666,12 +3735,14 @@ _continue_loop_draw_vine
         jmp _loop_draw_vine
 
 _wait_raster_c0
+.comment
 ;l926b
         lda VicScreenCtrlReg1               ; wait for MSB raster line = 0
         bmi _wait_raster_c0                 ; MSB raster = 1? ->
         lda VicRasterValue
         cmp #$c0                            ; raster line >= $0c0?
         bcc _wait_raster_c0                 ; no ->
+.endcomment
 
         lda zp_vine_change_direction        ; 0: don't change direction, 1: vine changes direction
         beq _skip_update_swing_side         ; don't change swing side ->
@@ -3680,6 +3751,7 @@ _wait_raster_c0
         sta zp_vine_swing_side              ; 0: vine swings on right side, 1: left side
 _skip_update_swing_side
         ldx #$00
+.comment
 _loop_update_sprite_data_vine
         lda $0800,x
         sta $5140,x                         ; copy to sprite id $45-$48
@@ -3689,8 +3761,10 @@ _loop_update_sprite_data_vine
         sta $5340,x                         ; copy to sprite id $4d-$50
         inx
         bne _loop_update_sprite_data_vine
+.endcomment
                                             ; x = 0
         stx zp_vine_change_direction        ; 0: don't change direction, 1: vine changes direction
+        jsr updateVineSpritesF256       ; update the vine sprite positions (F256)
         rts
 
 .comment
@@ -3727,34 +3801,7 @@ l929b
 irq_handler
         inc irqFrameCounter
 
-        lda zp_minutes
-        ldx zp_game_paused                  ; 0: game is not paused, 1: game is paused
-        bne _dec_time_done                  ; game paused -> don't decrease time
-        ora zp_seconds                      ; timer = 00:00?
-        beq _dec_time_done                  ; yes ->
-        dec zp_frame_counter                ; counts down number of frames in a second
-        bne _dec_time_done                  ; frames left in current second ->
-        lda zp_ntsc_pal
-        sta zp_frame_counter                ; counts down number of frames in a second
-
-        sed                                 ; decimal mode ON
-        lda zp_seconds                      ; decrement seconds
-        sec
-        sbc #$01
-        sta zp_seconds                      ; seconds >= 0?
-        bpl _dec_time_done
-        lda #$59                            ; reset seconds to 59
-        sta zp_seconds
-        lda zp_minutes                      ; decrement minutes
-        sec
-        sbc #$01
-        sta zp_minutes
-
-
-_dec_time_done
-        cld                                 ; decimal mode OFF
-        rts
-
+.comment
 interrupt_raster_32
 l92d6
         lda zp_vic_screen_ctrl_reg2
@@ -3927,7 +3974,7 @@ _wait_raster_107                        ; wait for raster line 107
 
         sta VicSpritePriority               ; give sprites priority over background
 
-        lda #$75                            ; y position of next row of sprites
+        lda #$75                            ; y position of next row of sprites (vine sprites row 0)
 _wait_raster_117                        ; wait for raster line 117
         cmp VicRasterValue
         bne _wait_raster_117
@@ -3941,7 +3988,7 @@ _wait_raster_117                        ; wait for raster line 117
         sta VicSprite7YPos
         inc sprite_7_pointer                ; ($4f)
 
-        lda #$8a                            ; y position of next row of sprites
+        lda #$8a                            ; y position of next row of sprites (vine sprites row 1)
 _wait_raster_138                        ; wait for raster line 138
         cmp VicRasterValue
         bne _wait_raster_138
@@ -4040,6 +4087,7 @@ scorpion_not_on_screen
         sta sprite_1_pointer
         lda #COLOR_WHITE                    ; color for scorpion: white
         sta VicSprite1Color
+.endcomment
 
         lda zp_minutes
         ldx zp_game_paused                  ; 0: game is not paused, 1: game is paused
@@ -4065,6 +4113,8 @@ scorpion_not_on_screen
         sta zp_minutes
 
 _dec_time_done
+        cld                             ; F256: decimal mode OFF
+.comment
         lda #$ea                            ; next interrupt at raster line $ea (234)
         sta VicRasterValue
         ldx #$08                            ; next interrupt: pointer offset
@@ -4106,6 +4156,7 @@ _wait_rainbow_raster
         ora zp_collision_scorpion           ; 0: no collision, 1: collision with scorpion
         sta zp_collision_scorpion           ; 0: no collision, 1: collision with scorpion
         cld
+.endcomment
 
         ; musical tune playback
 
@@ -4140,6 +4191,7 @@ _skip_tune_ptr_hb
         sta SidVoice3FreqHb                 ;   (still byte2)    Voice 3 Freq hb
         iny
         lda (zp_tune_ptr),y                 ; tune event byte 3: note duration
+.comment
         cmp #$01                            ; note duration = 1 (minimum duration)?
         beq _set_note_timer                 ; yes -> don't shorten minimum duration notes
 
@@ -4148,6 +4200,7 @@ _skip_tune_ptr_hb
         beq _set_note_timer                 ; NTSC: do not shorten note ->
         sec                                 ; PAL:  shorten note by 1 tick
         sbc #$01
+.endcomment
 
 _set_note_timer
         sta zp_note_timer                   ; remaining note length
@@ -4185,10 +4238,12 @@ _animate_treasure
         ; animate ring
         lda zp_random                       ; pseudo random number
         ora #$9f
-        sta $5087                           ; make the diamond ring sparkle
+                                            ; TODO F256: find a different solution for this
+;;;        sta $5087                           ; make the diamond ring sparkle
         lda zp_random                       ; pseudo random number
         ora #$f9
-        sta $508a                           ; make the diamond ring sparkle
+                                            ; TODO F256: find a different solution for this
+;;;        sta $508a                           ; make the diamond ring sparkle
         bne _update_screen_saver
 
 _animate_fire_or_snake
@@ -4201,6 +4256,7 @@ _animate_fire_or_snake
         sta sprite_3_pointer
 
 _update_screen_saver
+.comment
         inc zp_screen_saver_counter_lb      ; screen blanking counter (lb)
         bne _skip_screen_blanking
         inc zp_screen_saver_counter_hb      ; screen blanking counter (hb)
@@ -4237,6 +4293,10 @@ _screen_saver_done
 _nmi_handling_done
         ldx #$00                            ; next interrupt: pointer offset
         jmp finish_interrupt
+.endcomment
+
+        rts                             ; F256: return with a simple rts
+
 
 
 l9625
@@ -5047,10 +5107,25 @@ quicksand_char_data_ptr
 
 sprite_field_data_col_ptr
 l9ebe
+.comment
         .word $0800,$0801,$0802             ; swinging vine, sprite 1, column 0-2
         .word $08c0,$08c1,$08c2             ; swinging vine, sprite 2, column 3-5
         .word $0980,$0981,$0982             ; swinging vine, sprite 6, column 6-8
         .word $0a40,$0a41,$0a42             ; swinging vine, sprite 7, column 9-11
+.endcomment
+        .word vine_sprite_data+32*32*0
+        .word vine_sprite_data+32*32*2
+        .word vine_sprite_data+32*32*4
+
+sprite_field_data_row_offset_lb
+        .for row in range(64)
+        .byte <(row * 32)
+        .endfor
+
+sprite_field_data_row_offset_hb
+        .for row in range(64)
+        .byte >(row * 32)
+        .endfor
 
 harry_run_animation_sprite_id
         .byte $20,$22,$24,$26,$28
@@ -5063,6 +5138,7 @@ l9edb
         .byte $ff,$00,$00,$ff,$00,$ff,$ff,$ff
         .byte $ff,$ff,$ff,$ff
 
+.comment
 raster_interrupt_entry_table
 l9eff
         l9f00 = * + 1
@@ -5071,6 +5147,7 @@ l9eff
         .word interrupt_raster_162  ; x = 4
         .word interrupt_raster_171  ; x = 6
         .word interrupt_raster_234  ; x = 8
+.endcomment
 
 quicksand_left_x_pos
 l9f09
@@ -5220,3 +5297,8 @@ sprite_7_pointer
 
 game_loop_delay
     .byte $00
+
+    .align $1000
+vine_sprite_data
+    .fill 32*32*3*2,$02                ; space for 3 x 2 sprites of size 32 x 32
+

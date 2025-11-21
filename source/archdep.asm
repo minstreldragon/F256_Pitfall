@@ -689,6 +689,46 @@ _initNumberSpritesL
         lda #>(mainSpritesF256+SPRITE_DATA_LIFE_INDICATOR*24*24)
         sta VKY_SP0_AD_M,y
 
+        ; initialize sprites for swinging vine
+        lda #<vine_sprite_data
+        sta zpSrcPtr+0
+        lda #>vine_sprite_data
+        sta zpSrcPtr+1
+
+        ldy #SPRITE_ID_VINE_0 * 8
+        ldx #$00
+_initVineSpritesL
+        lda #%00000000                  ; size: 32x32, layer 0, LUT 0, Disable
+        sta VKY_SP0_CTRL,y
+        lda vineSpriteYPositions+0,x
+        sta VKY_SP0_POS_Y_L,y
+        lda vineSpriteYPositions+1,x
+        sta VKY_SP0_POS_Y_H,y
+
+        lda zpSrcPtr+0
+        sta VKY_SP0_AD_L,y
+        lda zpSrcPtr+1
+        sta VKY_SP0_AD_M,y
+        lda #$00
+        sta VKY_SP0_AD_H,y
+
+        clc                             ; adjust sprite pointer
+        lda zpSrcPtr+0
+        adc #<32*32
+        sta zpSrcPtr+0
+        lda zpSrcPtr+1
+        adc #>32*32
+        sta zpSrcPtr+1
+
+        inx
+        inx
+        tya
+        clc
+        adc #$08
+        tay
+        cpx #2*6
+        bne _initVineSpritesL
+
         rts
 
 
@@ -930,6 +970,70 @@ _updateSpritePosL
 
         lda #%00100001                  ; size: 24x24, layer 0, LUT 0, Enable
         sta VKY_SP0_CTRL,y              ; enable sprite
+
+        ply
+        plx
+        pla
+        rts
+
+
+updateVineSpritesF256
+        pha
+        phx
+        phy
+
+        ; update swinging vine
+
+        ; display the swinging vine if required by the room.
+        ; The swinging vine is realized using six sprites of size 32 x 32.
+        ; In order to cover the whole arc of the vine, the
+        ; 6 sprites are arrange in the form of a "carpet" of
+        ; 3 x 2 sprites, i.e. the resulting sprite field
+        ; looks like this:
+        ;
+        ; line:   sprite ids:
+        ;  $60     19 21 23
+        ;  $80     20 22 24
+
+
+        lda zp_vine_swing_side          ; 0: vine swings on right side, 1: left side
+        beq _vine_swings_right          ; vine swing on right side ->
+_vine_swings_left
+        lda #<vineSpriteXPositionsLeft
+        sta zpSrcPtr+0
+        lda #>vineSpriteXPositionsLeft
+        sta zpSrcPtr+1
+        jmp _vine_set_x_pos
+_vine_swings_right
+        lda #<vineSpriteXPositionsRight
+        sta zpSrcPtr+0
+        lda #>vineSpriteXPositionsRight
+        sta zpSrcPtr+1
+_vine_set_x_pos
+        ldx #SPRITE_ID_VINE_0 * 8
+        ldy #$00
+_loop_vine_set_x_pos
+        lda (zpSrcPtr),y
+        sta VKY_SP0_POS_X_L,x
+        iny
+        lda #$00                        ; x-coordinate, high byte
+        lda (zpSrcPtr),y
+        sta VKY_SP0_POS_X_H,x
+        iny
+
+        lda zp_room_has_vine
+        beq _update_enabled
+        lda #$01
+_update_enabled
+        ora #%00000000                  ; size: 32x32, layer 0, LUT 0, Disable
+        sta VKY_SP0_CTRL,x
+
+        txa
+        clc
+        adc #$08                        ; next sprite pointer
+        tax
+        cpy #6*2                        ; copy x positions for 6 sprites
+        bne _loop_vine_set_x_pos
 
         ply
         plx
@@ -1642,6 +1746,17 @@ _row_loop
         ply
         rts
 .endcomment
+
+
+        .align 2                        ; align to even addresses
+vineSpriteXPositionsLeft
+        .word $57+8,$57+8,$77+8,$77+8,$97+8,$97+8   ; vine sprites x positions (left side)
+vineSpriteXPositionsRight
+        .word $b5+8,$b5+8,$d5+8,$d5+8,$f5+8,$f5+8   ; vine sprites x positions (right side)
+
+vineSpriteYPositions
+        .word $4e,$6e,$4e,$6e,$4e,$6e   ; vine sprites y position
+
 
 ; offset into text tilemap:
 ; - 40 characters per row,
