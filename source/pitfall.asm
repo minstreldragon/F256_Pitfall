@@ -469,20 +469,21 @@ _wait_for_joystick_input
         sta zp_minutes                      ; minutes = $20
 
 l8078
-        lda irqFrameCounter
-        sta last_irq_counter
-        lda #5
-        sta game_loop_delay
+;        lda irqFrameCounter
+;        sta last_irq_counter
+;        lda #5
+;        sta game_loop_delay
 game_loop
-        jsr handleEvents                    ; F256: handle pending events
-        lda irqFrameCounter
-        cmp last_irq_counter
-        beq game_loop
-        sta last_irq_counter
-        dec game_loop_delay
-        bne game_loop
-        lda #5
-        sta game_loop_delay
+        jsr delay_game                  ; delay the game by a fixed number of frames
+;        jsr handleEvents                    ; F256: handle pending events
+;        lda irqFrameCounter
+;        cmp last_irq_counter
+;        beq game_loop
+;        sta last_irq_counter
+;        dec game_loop_delay
+;        bne game_loop
+;        lda #5
+;        sta game_loop_delay
 
         jsr player_move
 
@@ -503,7 +504,7 @@ game_loop
 _game_loop_skip_1
         jsr objects_move                    ; move/update objects:
                                             ; scorpion, crocodiles, quicksand, rolling logs
-;;;        jsr check_hazards
+        jsr check_hazards
 
         lda zp_jump_index                   ; 0: not jumping, >0: jump index, counting up
         beq _game_loop_skip_2
@@ -526,6 +527,21 @@ _game_loop_skip_3
 
         jsr display_scroll_text             ; scroll copyright text until player presses F1
         jmp warm_start
+
+delay_game
+        pha
+        lda #4
+        sta game_loop_delay
+delay_game_loop
+        jsr handleEvents                    ; F256: handle pending events
+        lda irqFrameCounter
+        cmp last_irq_counter
+        beq delay_game_loop
+        sta last_irq_counter
+        dec game_loop_delay
+        bne delay_game_loop
+        pla
+        rts
 
 last_irq_counter
     .byte $00
@@ -1804,15 +1820,14 @@ _loop_player_drowns
         bne _loop_player_drowns
 
         stx zp_player_y_pos                 ; player_x_pos = 0 (sprite invisible)
-        jsr setup_sprite_data
+;        jsr setup_sprite_data          ; not useful for F256 (sprites are not changed)
         jsr print_score_and_timer
 _wait_death_tune_finished
-.comment
+        jsr handleEvents                    ; F256: handle pending events
         ldy #$00
         lda (zp_tune_ptr),y                 ; current tune data byte
         cmp #END_OF_TUNE                    ; end of tune reached?
         bne _wait_death_tune_finished       ; no -> continue waiting
-.endcomment
 
         dec zp_lives                        ; # of lives left, including current
         bne start_next_life                 ; at least one life left -> start next life
@@ -1851,7 +1866,10 @@ _start_next_life_underground
         sta zp_scorpion_sprite_id
 
 loop_drop_harry_into_jungle
+        jsr delay_game                  ; delay the game and handle events
+
         sty zp_player_y_pos                 ; update y position of falling Harry
+        jsr updateSpritePositionsF256   ; TODO, EXPERIMENTAL: move to interrupt routine
         tya
         pha
         txa
@@ -5180,7 +5198,7 @@ l9f15
 tune_silence
         .byte $ff                           ; end of tune
 
-tune_data_treasure
+tune_data_death
 l9f32
         .byte $00,$00,$09,$20
         .byte $00,$00,$0a,$07
@@ -5199,7 +5217,7 @@ l9f32
         .byte $96,$96,$0c,$04
         .byte $ff                           ; end of tune
 
-tune_data_death
+tune_data_treasure
 l9f6f
         .byte $c3,$f0,$10,$07
         .byte $1f,$80,$15,$07
@@ -5225,10 +5243,9 @@ l9f88
 tune_start_table
 l9fad
         .word tune_data_tarzan-4
-        .word tune_data_treasure-4
         .word tune_data_death-4
+        .word tune_data_treasure-4
         .word tune_data_run_over_by_log-4
-
 
 l9fb5
 video_standard_dep_vars_table

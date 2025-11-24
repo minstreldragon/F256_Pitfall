@@ -133,7 +133,11 @@ handleEvents
         bcs _done
 
         ; handle the event
+        phx
+        phy
         jsr dispatchEvent
+        ply
+        plx
         jmp handleEvents                    ; continue until the queue is drained
 
 _done
