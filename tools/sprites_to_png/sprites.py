@@ -98,6 +98,10 @@ sprite_colors = [
     [ True, background_color, COLOR_BLACK, COLOR_BROWN, COLOR_WHITE ],    # $17 - gold brick
     [ True, background_color, COLOR_BLACK, COLOR_RED, COLOR_WHITE ],    # $18 - ring
     [ True, background_color, COLOR_BLACK, COLOR_RED, COLOR_WHITE ],    # $19 - ring
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $1a   - standing right (extra space)
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $1b   - standing right (for death scene)
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $1c   - standing left (extra space)
+    [ True, background_color, COLOR_LIGHTBLUE, COLOR_WHITE, COLOR_BLACK ],    # $1d   - standing left (for death scene)
 ]
 
 
@@ -342,6 +346,7 @@ def mirrorSprite(inspr):
 
 def extendSpriteset(spriteset_org):
     spriteset = bytearray()
+    ndefs = len(spriteset) // sprite_size_c64
     # first, copy and mirror harry sprites
     # second, add all sprites below Harry
     for i in range(8):
@@ -349,6 +354,9 @@ def extendSpriteset(spriteset_org):
         spriteset.extend(mirrorSprite(spriteset_org[i*64:(i+1)*64]))
     #spriteset.extend(spriteset_org[0:8*64])
     spriteset.extend(spriteset_org[8*64:])
+    # mirrored version of "drowning" Pitfall harry
+    spriteset.extend(spriteset_org[(ndefs-2)*64:(ndefs-1)*64])
+    spriteset.extend(mirrorSprite(spriteset_org[(ndefs-1)*64:]))
     return spriteset
 
 if __name__ == '__main__':

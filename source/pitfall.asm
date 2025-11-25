@@ -49,6 +49,8 @@ SPRITE_ID_SCORPION_RIGHT_OLD = $3b
 SPRITE_ID_MONEY_BAG = $3e
 SPRITE_ID_GOLD_SILVER_BAR = $40
 SPRITE_ID_DIAMOND_RING = $42
+SPRITE_ID_PLAYER_DROWNING_RIGHT = $44
+SPRITE_ID_PLAYER_DROWNING_LEFT = $46
 
 VIDEO_NTSC = 60                         ; # of frames per second (NTSC)
 VIDEO_PAL  = 50                         ; # of frames per second (PAL)
@@ -1815,7 +1817,9 @@ l8792
         sta zp_player_y_pos
         ldx #$18                            ; repeat 24 times
 _loop_player_drowns
-        jsr animate_drown_one_line          ; Harry drowns one line at a time
+        jsr delay_game                  ; delay the game and handle events
+;;;        jsr animate_drown_one_line          ; Harry drowns one line at a time
+        jsr updateHarrySpriteDrowningF256
         dex
         bne _loop_player_drowns
 

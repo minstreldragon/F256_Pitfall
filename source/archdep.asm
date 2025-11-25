@@ -868,7 +868,7 @@ updateScorpionSpriteF256
 
 
 updateHarrySpriteF256
-        ; update object sprite for scorpion
+        ; update object sprite for Pitfall Harry
         ; A: sprite ID (C64)
 
         pha
@@ -891,6 +891,63 @@ updateHarrySpriteF256
         plx
         pla
         rts
+
+updateHarrySpriteDrowningF256
+        ; update object sprite for Pitfall Harry
+        ; A: sprite ID (C64)
+        ; X: phase of drowning (24..1)
+
+        pha
+        phx
+
+        cpx #24
+        bne _decreasePointer
+
+        ldx #(SPRITE_ID_PLAYER_DROWNING_RIGHT-SPRITE_ID_PLAYER_RUNNING-2)   ; sprite id: Harry standing right
+        lda zp_player_orientation
+        beq _setSpritePointer
+        ldx #(SPRITE_ID_PLAYER_DROWNING_LEFT-SPRITE_ID_PLAYER_RUNNING-2)    ; sprite id: Harry standing right
+_setSpritePointer
+        clc
+        lda spritedata_ptr_lb,x
+        adc #<mainSpritesF256
+        sta VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
+        lda spritedata_ptr_hb,x
+        adc #>mainSpritesF256
+        sta VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+
+        sec
+        lda VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
+        sbc #<3*24
+        sta VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
+        lda VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+        sbc #>3*24
+        sta VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+
+        lda #$01
+        sta VKY_SP0_AD_H+SPRITE_ID_HARRY*8
+
+        lda zp_player_y_pos             ; Harry's y-coordinate
+        sec
+        sbc #3
+        sta zp_player_y_pos             ; Harry's y-coordinate
+        jsr updateSpritePositionsF256
+        jmp _exit
+
+_decreasePointer
+        sec
+        lda VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
+        sbc #<24
+        sta VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
+        lda VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+        sbc #>24
+        sta VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+
+_exit
+        plx
+        pla
+        rts
+
 
 
 updateSpritePositionsF256
@@ -1778,12 +1835,12 @@ tilemap_line_ptr_hb
         .endfor
 
 spritedata_ptr_lb
-        .for sprite_id in range(33)
+        .for sprite_id in range(37)
         .byte <(sprite_id * 24 * 24) & $00ff
         .endfor
 
 spritedata_ptr_hb
-        .for sprite_id in range(33)
+        .for sprite_id in range(37)
         .byte >(sprite_id * 24 * 24) & $ff00
         .endfor
 
