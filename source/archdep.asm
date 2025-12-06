@@ -442,6 +442,7 @@ clut_start
         .byte $f8,$77,$7a,$00    ; light blue
         .byte $e0,$e0,$e0,$00    ; light grey
         .byte $00,$00,$00,$00    ; black (solid)
+        .byte $f8,$77,$7a,$00    ; light blue
 clut_end
 
 
@@ -1100,6 +1101,40 @@ _update_enabled
         plx
         pla
         rts
+
+setQuicksandColor                       ; y = color (COL_BLACK or COL_LIGHTBLUE)
+        pha
+        lda #$01                        ; Set the I/O page to #1
+        sta MMU_IO_CTRL                 ; ($c000-$dfff is I/O)
+
+        ; main clut (and player sprites)
+
+        clc
+        tya
+        asl
+        asl
+        adc #<clut_start-1
+        sta zpSrcPtr+0
+        lda #>clut_start-1
+        sta zpSrcPtr+1
+        bcc _skipInc
+        inc zpSrcPtr+1
+_skipInc
+
+        lda #<VKY_GR_CLUT_0+COL_QUICKSAND*4-1
+        sta zpDstPtr+0
+        lda #>VKY_GR_CLUT_0+COL_QUICKSAND*4-1
+        sta zpDstPtr+1
+
+        ldy #4                          ; length of one CLUT entry
+        jsr SmallMemCopy
+
+        lda #$00                        ; Set the I/O page to #0
+        sta MMU_IO_CTRL                 ; ($c000-$dfff is I/O)
+        pla
+
+        rts
+
 
 
 .comment

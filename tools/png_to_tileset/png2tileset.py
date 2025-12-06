@@ -25,7 +25,11 @@ COL_MIDGREY = 0xc
 COL_LIGHTGREEN = 0xd
 COL_LIGHTBLUE = 0xe
 COL_LIGHTGREY = 0xf
+COL_SOLIDBLACK = 0x10
+COL_WATER_TAR = 0x11
 
+def tile_is_quicksand(id):
+    return (id >= 0x10 and id <= 0x19) or (id >= 28 and id <= 0x2d)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='image to bitmap data converter')
@@ -66,6 +70,8 @@ def convertPngToBin(img, palette, width, height):
             for dy in range(TILE_HEIGHT):
                 for dx in range(TILE_WIDTH):
                     px = getColor(img, tx + dx, ty + dy, palette)
+                    if tile_is_quicksand(tile) and px == COL_LIGHTBLUE:
+                        px = COL_WATER_TAR
                     outdata.append(px)
             tile = tile + 1
             if tile >= NUM_TILES:

@@ -2858,7 +2858,8 @@ init_skip_crocodiles
         beq _no_tar_pit                     ; yes -> color = blue
         ldy #COLOR_BLACK                    ; color for tar pit
 _no_tar_pit
-        sty zp_background_col_0             ; VIC background color 0 (pit color)
+;;;        sty zp_background_col_0             ; VIC background color 0 (pit color)
+        jsr setQuicksandColor
 
         cpx #SCENE_TREASURE                 ; shifting tar pit with treasure?
         bne _init_skip_treasure
@@ -2954,7 +2955,8 @@ init_treasure_rts
 
 init_crocodiles
 l8ee9
-        sty zp_background_col_0             ; VIC background color 0 (pit color)
+;;;        sty zp_background_col_0             ; VIC background color 0 (pit color)
+        jsr setQuicksandColor
         lda #SPRITE_ID_CROCODILE            ; sprite id: crocodile
         ldy #COLOR_BLACK                    ; sprite color
         jsr objects_set_sprite_id_and_color ; set id and color for sprites 3,4,5
