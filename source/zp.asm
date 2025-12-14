@@ -237,10 +237,12 @@ zp_divisor                              ; divisor in division
 
 zp_temp_x                               ; temporary backup of x register
 zp_temp_y                               ; temporary backup of y register
+zp_temp1
         .byte ?
 
 zp_vine_y                               ; temporary: y pos within vine
 zp_mirrored_byte                        ; temporary: mirrored mc byte
+zp_temp2
         .byte ?
 
 zp_vine_change_direction                ; 0: don't change direction, 1: vine changes direction

@@ -676,22 +676,22 @@ _initNumberSpritesL
         cpy #$70
         bne _initNumberSpritesL
 
-        ldy #SPRITE_ID_COLON * 8
-        lda #<(numberSpritesF256+SPRITE_DATA_COLON*$0100)
+        ldy #SPRITE_OBJ_COLON * 8
+        lda #<(numberSpritesF256+SPRITE_ID_COLON*$0100)
         sta VKY_SP0_AD_L,y
-        lda #>(numberSpritesF256+SPRITE_DATA_COLON*$0100)
+        lda #>(numberSpritesF256+SPRITE_ID_COLON*$0100)
         sta VKY_SP0_AD_M,y
 
-        ldy #SPRITE_ID_LIFE_INDICATOR * 8
-        lda #<(mainSpritesF256+SPRITE_DATA_LIFE_INDICATOR*24*24)
+        ldy #SPRITE_OBJ_LIFE_INDICATOR * 8
+        lda #<(mainSpritesF256+SPRITE_ID_LIFE_INDICATOR*24*24)
         sta VKY_SP0_AD_L,y
-        lda #>(mainSpritesF256+SPRITE_DATA_LIFE_INDICATOR*24*24)
+        lda #>(mainSpritesF256+SPRITE_ID_LIFE_INDICATOR*24*24)
         sta VKY_SP0_AD_M,y
 
-        ldy #(SPRITE_ID_LIFE_INDICATOR+1) * 8
-        lda #<(mainSpritesF256+SPRITE_DATA_LIFE_INDICATOR*24*24)
+        ldy #(SPRITE_OBJ_LIFE_INDICATOR+1) * 8
+        lda #<(mainSpritesF256+SPRITE_ID_LIFE_INDICATOR*24*24)
         sta VKY_SP0_AD_L,y
-        lda #>(mainSpritesF256+SPRITE_DATA_LIFE_INDICATOR*24*24)
+        lda #>(mainSpritesF256+SPRITE_ID_LIFE_INDICATOR*24*24)
         sta VKY_SP0_AD_M,y
 
         ; initialize sprites for swinging vine
@@ -700,7 +700,7 @@ _initNumberSpritesL
         lda #>vine_sprite_data
         sta zpSrcPtr+1
 
-        ldy #SPRITE_ID_VINE_0 * 8
+        ldy #SPRITE_OBJ_VINE_0 * 8
         ldx #$00
 _initVineSpritesL
         lda #%00000000                  ; size: 32x32, layer 0, LUT 0, Disable
@@ -769,7 +769,7 @@ updateLifeIndicatorSpriteF256
         asl
         asl
         asl
-        adc #SPRITE_ID_LIFE_INDICATOR * 8
+        adc #SPRITE_OBJ_LIFE_INDICATOR * 8
         tax
         pla
         pha
@@ -820,12 +820,12 @@ _updateObjectSpritesL
         clc
         lda spritedata_ptr_lb,x
         adc #<mainSpritesF256
-        sta VKY_SP0_AD_L+SPRITE_ID_OBJECTS*8,y  ; sprite address register, low byte
+        sta VKY_SP0_AD_L+SPRITE_OBJ_OBJECTS*8,y  ; sprite address register, low byte
         lda spritedata_ptr_hb,x
         adc #>mainSpritesF256
-        sta VKY_SP0_AD_M+SPRITE_ID_OBJECTS*8,y
+        sta VKY_SP0_AD_M+SPRITE_OBJ_OBJECTS*8,y
         lda #$01
-        sta VKY_SP0_AD_H+SPRITE_ID_OBJECTS*8,y
+        sta VKY_SP0_AD_H+SPRITE_OBJ_OBJECTS*8,y
 
         tya
         clc
@@ -856,12 +856,12 @@ updateScorpionSpriteF256
         clc
         lda spritedata_ptr_lb,x
         adc #<mainSpritesF256
-        sta VKY_SP0_AD_L+SPRITE_ID_SCORPION*8   ; sprite address register, low byte
+        sta VKY_SP0_AD_L+SPRITE_OBJ_SCORPION*8   ; sprite address register, low byte
         lda spritedata_ptr_hb,x
         adc #>mainSpritesF256
-        sta VKY_SP0_AD_M+SPRITE_ID_SCORPION*8
+        sta VKY_SP0_AD_M+SPRITE_OBJ_SCORPION*8
         lda #$01
-        sta VKY_SP0_AD_H+SPRITE_ID_SCORPION*8
+        sta VKY_SP0_AD_H+SPRITE_OBJ_SCORPION*8
 
         plx
         pla
@@ -877,21 +877,25 @@ updateHarrySpriteF256
 
         sec                             ; translate C64 sprite to F256 sprite
         sbc #SPRITE_ID_PLAYER_RUNNING
+        sta harry_sprite_id
         tax
 
         clc
         lda spritedata_ptr_lb,x
         adc #<mainSpritesF256
-        sta VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
+        sta VKY_SP0_AD_L+SPRITE_OBJ_HARRY*8      ; sprite address register, low byte
         lda spritedata_ptr_hb,x
         adc #>mainSpritesF256
-        sta VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+        sta VKY_SP0_AD_M+SPRITE_OBJ_HARRY*8
         lda #$01
-        sta VKY_SP0_AD_H+SPRITE_ID_HARRY*8
+        sta VKY_SP0_AD_H+SPRITE_OBJ_HARRY*8
 
         plx
         pla
         rts
+
+harry_sprite_id                         ; current sprite id for harry
+        .byte $00
 
 updateHarrySpriteDrowningF256
         ; update object sprite for Pitfall Harry
@@ -912,21 +916,21 @@ _setSpritePointer
         clc
         lda spritedata_ptr_lb,x
         adc #<mainSpritesF256
-        sta VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
+        sta VKY_SP0_AD_L+SPRITE_OBJ_HARRY*8      ; sprite address register, low byte
         lda spritedata_ptr_hb,x
         adc #>mainSpritesF256
-        sta VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+        sta VKY_SP0_AD_M+SPRITE_OBJ_HARRY*8
 
         sec
-        lda VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
+        lda VKY_SP0_AD_L+SPRITE_OBJ_HARRY*8      ; sprite address register, low byte
         sbc #<3*24
-        sta VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
-        lda VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+        sta VKY_SP0_AD_L+SPRITE_OBJ_HARRY*8      ; sprite address register, low byte
+        lda VKY_SP0_AD_M+SPRITE_OBJ_HARRY*8
         sbc #>3*24
-        sta VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+        sta VKY_SP0_AD_M+SPRITE_OBJ_HARRY*8
 
         lda #$01
-        sta VKY_SP0_AD_H+SPRITE_ID_HARRY*8
+        sta VKY_SP0_AD_H+SPRITE_OBJ_HARRY*8
 
         lda zp_player_y_pos             ; Harry's y-coordinate
         sec
@@ -937,12 +941,12 @@ _setSpritePointer
 
 _decreasePointer
         sec
-        lda VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
+        lda VKY_SP0_AD_L+SPRITE_OBJ_HARRY*8      ; sprite address register, low byte
         sbc #<24
-        sta VKY_SP0_AD_L+SPRITE_ID_HARRY*8      ; sprite address register, low byte
-        lda VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+        sta VKY_SP0_AD_L+SPRITE_OBJ_HARRY*8      ; sprite address register, low byte
+        lda VKY_SP0_AD_M+SPRITE_OBJ_HARRY*8
         sbc #>24
-        sta VKY_SP0_AD_M+SPRITE_ID_HARRY*8
+        sta VKY_SP0_AD_M+SPRITE_OBJ_HARRY*8
 
 _exit
         plx
@@ -960,7 +964,7 @@ updateSpritePositionsF256
         phy
 
         ldx #$00
-        ldy #SPRITE_ID_OBJECTS * 8       ; offset to sprite registers for first object
+        ldy #SPRITE_OBJ_OBJECTS * 8       ; offset to sprite registers for first object
 _updateSpritePosL
         phx
         txa
@@ -992,9 +996,9 @@ _updateSpritePosL
         bne _updateSpritePosL
 
         ; update scorpion
-        ; y = SPRITE_ID_SCORPION*8
+        ; y = SPRITE_OBJ_SCORPION*8
 
-        ldy #SPRITE_ID_SCORPION * 8
+        ldy #SPRITE_OBJ_SCORPION * 8
         lda zp_scorpion_x_pos+0         ; x-coordinate, low byte
         clc
         adc #$08                        ; adjust for different X offset on F256 vs C64
@@ -1012,9 +1016,9 @@ _updateSpritePosL
         sta VKY_SP0_CTRL,y              ; enable sprite
 
         ; update Pitfall Harry
-        ; y = SPRITE_ID_HARRY * 8
+        ; y = SPRITE_OBJ_HARRY * 8
 
-        ldy #SPRITE_ID_HARRY * 8
+        ldy #SPRITE_OBJ_HARRY * 8
         lda zp_player_x_pos+0           ; Harry's x-coordinate, low byte
         clc
         adc #$08                        ; adjust for different X offset on F256 vs C64
@@ -1072,7 +1076,7 @@ _vine_swings_right
         lda #>vineSpriteXPositionsRight
         sta zpSrcPtr+1
 _vine_set_x_pos
-        ldx #SPRITE_ID_VINE_0 * 8
+        ldx #SPRITE_OBJ_VINE_0 * 8
         ldy #$00
 _loop_vine_set_x_pos
         lda (zpSrcPtr),y
@@ -1135,6 +1139,215 @@ _skipInc
 
         rts
 
+
+checkCollision                          ; check collision between harry and sprite obj A
+                                        ; A: sprite object (F256)
+        phx                             ; X: sprite ID (C64)
+        phy
+
+        stx collision_object_id
+
+        asl
+        asl                             ; get object/enemy sprite register offset
+        asl
+        tay
+
+_checkVertical
+        sec
+        lda VKY_SP0_POS_Y_L,y
+        sbc VKY_SP0_POS_Y_L + SPRITE_OBJ_HARRY*8    ; position Harry, lb
+        sta delta_y
+        bcs _checkVertAbs               ; difference positive ->
+
+        sec                             ; else, calculate absolute distance
+        lda #0
+        sbc delta_y
+_checkVertAbs
+        sta distance_y
+        cmp #COLLISION_SPRITE_HEIGHT
+        bcs _no_collision               ; no collision
+
+_checkHorizontal
+        sec
+        lda VKY_SP0_POS_X_L,y           ; position object
+        sbc VKY_SP0_POS_X_L + SPRITE_OBJ_HARRY*8        ; position Harry, lb
+        sta delta_x+0
+        sta distance_x+0
+
+        lda VKY_SP0_POS_X_H,y           ; position object
+        sbc VKY_SP0_POS_X_H + SPRITE_OBJ_HARRY*8        ; position Harry, hb
+        sta delta_x+1
+        sta distance_x+1
+        bcs _checkHorAbs
+
+        sec                             ; negate, if the result is negative
+        lda #0
+        sbc delta_x+0
+        sta distance_x+0
+        lda #0
+        sbc delta_x+1
+        sta distance_x+1
+_checkHorAbs
+        lda distance_x+1
+        bne _no_collision               ; no collision
+        lda distance_x+0
+        cmp #SPRITE_WIDTH
+        bcs _no_collision               ; no collision
+
+        jsr checkCollisionDetail        ; detailed collision check
+_exit
+        ply
+        plx
+        rts
+
+_no_collision
+        lda #$00                        ; return value: no collision
+        beq _exit
+
+delta_x                                 ; offset between object and harry (signed)
+        .word $0000
+delta_y
+        .byte $00
+
+distance_x                              ; distance between object and harry (absolute)
+        .word $0000
+distance_y
+        .byte $00
+
+collision_object_id
+        .byte $00
+
+left_mask
+        .byte $00
+
+right_mask
+        .byte $00
+
+checkCollisionDetail:
+        ; Step 1: copy Harry's collision mask into collision_bitmap
+
+        lda #<collision_bitmap + (COLLISION_SPRITE_HEIGHT * 3 + 1) * (SPRITE_WIDTH/8)
+        sta zpDstPtr+0
+        lda #>collision_bitmap + (COLLISION_SPRITE_HEIGHT * 3 + 1) * (SPRITE_WIDTH/8)
+        sta zpDstPtr+1
+
+        ldx harry_sprite_id             ; current sprite id for Harry
+        lda sprite_masks_table_lb,x
+        sta _copyLoop2+1
+        lda sprite_masks_table_hb,x
+        sta _copyLoop2+2
+
+        ; Step 1b: copy sprite from zpSrcPtr to zpDstPtr
+
+        ldx #$00                        ; source index
+        ldy #$00                        ; destination index
+        lda #COLLISION_SPRITE_HEIGHT    ; # of lines to copy
+        sta zp_temp2
+_copyLoop1
+        lda #SPRITE_WIDTH/8             ; width of collision mask
+        sta zp_temp1
+_copyLoop2
+        lda $c0de,x                     ; read mask byte from source (self modified address)
+        sta (zpDstPtr),y                ; store in destination
+        inx
+        iny
+        dec zp_temp1
+        bne _copyLoop2
+        tya
+        clc
+        adc #2 * (SPRITE_WIDTH/8)       ; proceed destination to next line
+        tay
+        dec zp_temp2
+        bne _copyLoop1
+
+        ; Step 2: check Object's collision mask against collision_bitmap
+        clc
+        lda #COLLISION_SPRITE_HEIGHT    ; line of Harry's position in collision map
+        adc delta_y                     ; calculate target line
+        tax
+
+        lda collision_bitmap_table_lb,x ; base address (target line)
+        sta zpDstPtr+0
+        lda collision_bitmap_table_hb,x
+        sta zpDstPtr+1
+
+        clc
+        lda #SPRITE_WIDTH               ; row of Harry's position in collision map
+        adc delta_x                     ; calculate target row
+        pha
+        lsr                             ; divide by 8 (mask offset)
+        lsr
+        lsr
+        clc
+        adc zpDstPtr+0                  ; add to destination offset
+        sta zpDstPtr+0
+        bcc _skipInc
+        inc zpDstPtr+1                  ; handle high byte
+_skipInc
+        pla
+        and #7                          ; calculate pixel offset
+        tax
+
+        lda shift_table_left_page_pointers,x
+        sta _readShiftTableLeft+2       ;  Set shift table addresses (left byte)
+        lda shift_table_right_page_pointers,x
+        sta _readShiftTableRight+2      ;  Set shift table addresses (right byte)
+
+        lda collision_object_id
+        sec                             ; translate C64 sprite to F256 sprite
+        sbc #SPRITE_ID_PLAYER_RUNNING
+        cmp #(SPRITE_ID_ROLLING_LOG_0-SPRITE_ID_PLAYER_RUNNING)
+        bcc _skip
+        sbc #2                          ; used on C64 for life indicator
+_skip
+
+        tax                             ; current sprite id for opponent
+        lda sprite_masks_table_lb,x
+        sta _checkLoop2+1
+        lda sprite_masks_table_hb,x
+        sta _checkLoop2+2
+
+        ldx #$00                        ; source index
+        ldy #$00                        ; destination index
+        lda #COLLISION_SPRITE_HEIGHT    ; # of lines to copy
+        sta zp_temp2
+_checkLoop1
+        lda #SPRITE_WIDTH/8             ; width of collision mask
+        sta zp_temp1
+_checkLoop2
+        lda $c0d0,x                     ; read mask byte from source (self modified address)
+        phx                             ; store index
+        tax
+_readShiftTableRight
+        lda $c000,x                     ; shift table: right byte (self modified)
+        sta right_mask
+_readShiftTableLeft
+        lda $c000,x                     ; shift table: left byte (self modified)
+        ; sta left_mask
+        plx                             ; restore index
+
+        and (zpDstPtr),y                ; AND with collision bitmap byte
+        bne _collisionDetected          ; if not 0, we have a collision ->
+        iny
+        lda right_mask
+        and (zpDstPtr),y                ; AND with collision bitmap byte
+        bne _collisionDetected          ; if not 0, we have a collision ->
+        inx
+        dec zp_temp1
+        bne _checkLoop2
+        tya
+        clc
+        adc #2 * (SPRITE_WIDTH/8)       ; proceed destination to next line
+        tay
+        dec zp_temp2
+        bne _checkLoop1
+
+        lda #$00                        ; no collision detected
+        rts
+
+_collisionDetected
+        lda #$01                        ; mark collision
+        rts
 
 
 .comment
@@ -1891,3 +2104,53 @@ tilemap_fg
         ;.fill 42*25*2, [$20,$05]        ; reserve space for 8x8 tiles
         .fill 42*25*2, [$00,$00]        ; reserve space for 8x8 tiles
                                         ; default tile: blank tile, in tileset 0
+
+
+        .align $100                     ; align tilemap_text to word
+shift_table .bfor shift in range(8)
+left
+        .for b in range(256)
+        .byte (b >> shift) & $ff
+        .endfor
+right
+        .for b in range(256)
+        .byte (b << 8-shift) & $ff
+        .endfor
+        .endfor
+
+collision_bitmap                        ; internal bitmap for sprite-to-sprite collision detection
+        .fill 3 * (SPRITE_WIDTH/8) * 3 * COLLISION_SPRITE_HEIGHT, 0
+
+shift_table_left_page_pointers
+        .for offset in range(8)
+        .byte > shift_table[offset].left
+        .endfor
+
+shift_table_right_page_pointers
+        .for offset in range(8)
+        .byte > shift_table[offset].right
+        .endfor
+
+collision_bitmap_table_lb
+        .for row in range(3 * COLLISION_SPRITE_HEIGHT)
+        .byte < collision_bitmap + row * 3 * (SPRITE_WIDTH/8)
+        .endfor
+
+collision_bitmap_table_hb
+        .for row in range(3 * COLLISION_SPRITE_HEIGHT)
+        .byte > collision_bitmap + row * 3 * (SPRITE_WIDTH/8)
+        .endfor
+
+sprite_masks_table_lb
+        .for id in range(33)
+        .byte < sprite_masks + id * 64
+        .endfor
+
+sprite_masks_table_hb
+        .for id in range(33)
+        .byte > sprite_masks + id * 64
+        .endfor
+
+        .align $100                     ; align tilemap_text to word
+sprite_masks
+        .binary "..\assets\sprite_masks"

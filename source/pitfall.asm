@@ -1141,12 +1141,18 @@ objects_move
         bne _no_crocodiles                  ; no ->
         jsr crocodile_handle_jaws
         jsr scorpion_move
+_checkCollisionScorpion
+        lda #SPRITE_OBJ_SCORPION        ; sprite object: scorpion
+        ldx zp_scorpion_sprite_id       ; current sprite id (shape)
+        jsr checkCollision              ; check for collision with Harry
+        sta zp_collision_scorpion       ; 0: no collision, 1: collision with scorpion
         rts
 
 _no_crocodiles
         cmp #$02
         bcc _no_scorpion
         jsr scorpion_move
+        jsr _checkCollisionScorpion     ; check for collision with scorpion
 
 _no_scorpion
         lda zp_scene_type
