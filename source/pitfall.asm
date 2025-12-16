@@ -1772,8 +1772,8 @@ check_collect_treasure
         sta zp_treasure_collected_flags,x   ; each bit: 1 = treasure not collected (4)
         lda zp_objects                      ; low two bits describe treasure
         and #$03
-        asl                                 ; value = treasure code * 4000 + 2000
-        asl
+        asl                                 ; value = treasure code * 1000 + 2000
+        asl                                 ; (shift treasure code to high nibble)
         asl
         asl
         adc #$20                            ; minimum treasure: $2000
@@ -1781,7 +1781,7 @@ check_collect_treasure
         adc zp_score_100                    ; add treasure to score
         sta zp_score_100
         lda #$00
-        sta $1c
+        sta zp_treasure_y_pos               ; hide treasure sprite in the upper border
         adc zp_score_10000
         sta zp_score_10000
         cld                                 ; decimal mode OFF
@@ -4118,6 +4118,7 @@ scorpion_not_on_screen
         lda #COLOR_WHITE                    ; color for scorpion: white
         sta VicSprite1Color
 .endcomment
+        jsr checkObjectsCollision       ; check for collision with surface objects
 
         lda zp_minutes
         ldx zp_game_paused                  ; 0: game is not paused, 1: game is paused

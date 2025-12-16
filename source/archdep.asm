@@ -1140,6 +1140,43 @@ _skipInc
         rts
 
 
+checkObjectsCollision                   ; check for collisions other than scorpion
+        ; check collision with all three 'object' sprites
+        pha
+        phx
+        phy
+
+        ldy #2                          ; iterate over three sprites
+        lda #SPRITE_OBJ_OBJECTS         ; sprite object: first object (of three)
+        sta _sprite_obj
+_loop
+        lda _sprite_obj
+        ldx sprite_3_pointer,y
+        jsr checkCollision              ; check for collision with Harry
+        cmp #$01
+        beq _collisionDetected
+
+        inc _sprite_obj
+        dey
+        bpl _loop
+
+        lda #0
+
+_exit
+        sta zp_collision_surface
+        ply
+        plx
+        pla
+        rts
+
+_collisionDetected
+        lda #$10                        ; mark collision (C64 sprite 3)
+        bne _exit
+
+_sprite_obj
+        .byte $00
+
+
 checkCollision                          ; check collision between harry and sprite obj A
                                         ; A: sprite object (F256)
         phx                             ; X: sprite ID (C64)
