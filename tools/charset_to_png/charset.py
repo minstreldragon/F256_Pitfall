@@ -21,6 +21,40 @@ COLOR_LIGHTGREEN = 0x0d
 COLOR_LIGHTBLUE = 0x0e
 COLOR_LIGHTGREY = 0x0f
 
+flag = [
+    2,2,2,2,2,2,2,2,
+    2,2,2,2,2,2,2,2,
+    7,7,7,7,7,7,7,7,
+    7,7,7,7,7,7,7,7,
+    5,5,5,5,5,5,5,5,
+    5,5,5,5,5,5,5,5,
+    6,6,6,6,6,6,6,6,
+    6,6,6,6,6,6,6,6
+]
+
+activision_A1 = [
+    2,2,2,2,2,2,2,1,
+    2,2,2,2,2,2,1,1,
+    7,7,7,7,7,1,1,1,
+    7,7,7,7,1,1,1,0,
+    5,5,5,1,1,1,1,1,
+    5,5,1,1,1,0,0,0,
+    6,1,1,1,0,0,0,0,
+    1,1,1,0,0,0,0,0
+]
+
+activision_A2 = [
+    1,1,1,1,0,0,0,0,
+    1,1,1,1,0,0,0,0,
+    0,1,1,1,0,0,0,0,
+    0,1,1,1,0,0,0,1,
+    1,1,1,1,0,0,0,1,
+    0,1,1,1,0,0,0,1,
+    0,1,1,1,0,0,0,1,
+    0,1,1,1,0,0,0,1
+]
+
+
 palette = []
 
 tileColors = [
@@ -98,7 +132,7 @@ char_colors = [
     [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BROWN, COLOR_GREEN, COLOR_BLACK, COLOR_BLACK ],
-    [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
+    [ True, COLOR_BLACK, COLOR_WHITE, COLOR_RED, COLOR_RED ],           # Rainbow Flag
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
     [ False, COLOR_BLACK, COLOR_WHITE, COLOR_BLACK, COLOR_BLACK ],
@@ -180,6 +214,10 @@ def convertByte(b, bgcol, fgcol):
 
 def drawChar(draw, charset, ch, x, y):
     print("Char:", ch, "draw", draw, "x", x, "y", y)
+    if (ch >= 0x3c) and (ch <= 0x3e):
+        drawCharCustom(draw, ch, x, y)
+        return
+
     #is_multicolor = char_colors[ch][0]
     for py in range(8):
         px = 0
@@ -204,24 +242,14 @@ def drawChar(draw, charset, ch, x, y):
             draw.point((x+px, y+py), pixel)
             px += 1
 
-
-    #drawHiresChar(draw, charset, ch, x, y)
-    #for py in range(8):
-    #    px = 0
-    #    print(charset[ch * 8 + py])
-    #    b = charset[ch * 8 + py]
-    #    for pixel in convertByte(b, col0, col1):
-    #        draw.point((x+px, y+py), pixel)
-    #        px += 1
-    #is_multicolor = char_colors[ch][0]
-    #print("Multicolor", is_multicolor)
-    #for py in range(8):
-    #    px = 0
-    #    print(charset[ch * 8 + py])
-    #    b = charset[ch * 8 + py]
-    #    for pixel in convertByte(b, col0, col1):
-    #        draw.point((x+px, y+py), pixel)
-    #        px += 1
+def drawCharCustom(draw, ch, x, y):
+    b = [flag, activision_A1, activision_A2][ch-0x3c]
+    i = 0
+    for py in range(8):
+        for px in range(8):
+            pixel = palette[b[i]]
+            draw.point((x+px, y+py), pixel)
+            i = i + 1
 
 def drawTile(draw, tileset, tile, x, y, col0, col1):
     print("Tile:", tile, "draw", draw, "x", x, "y", y, "col0", col0, "col1", col1)
@@ -278,3 +306,4 @@ if __name__ == '__main__':
     image.save("pitfall_charset.png")
 
     print(char_colors[1])
+

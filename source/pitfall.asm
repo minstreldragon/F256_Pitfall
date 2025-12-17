@@ -247,7 +247,8 @@ quicksand_screen_data = $1000
 
 screenRAM = $4000
 vic_base = $4000
-screen_scroll_text = screenRAM + $3c0
+;screen_scroll_text = screenRAM + $3c0  ; original C64 (24 * 40)
+screen_scroll_text = tilemap_scroll + 2*(24*42+1)  ; F256 (last line)
 
 .comment
 sprite_0_pointer = $43f8
@@ -453,9 +454,11 @@ _loop_init_SID
         lda zp_initialized                  ; 0: cold start, 1: game initialized, restart
         bne _skip_wait_for_f1
         jsr display_scroll_text             ; scroll copyright text until player presses F1
+.endcomment
 
 _skip_wait_for_f1
         jsr display_activision_logo
+.comment
 _wait_for_joystick_input
         jsr read_joystick
         and #$0f                            ; extract joystick directions
@@ -2123,6 +2126,7 @@ _print_blank_char
         lda #$00                            ; blank character
 _print_char
         sta screen_scroll_text,y            ; scroll one character one cell to the left
+.comment
         cmp #$3c                            ; rainbow strip character
         beq _set_rainbow_color
         cmp #$3d                            ; another rainbow strip character (the A in Activision)
@@ -2134,8 +2138,10 @@ _set_font_color
         lda #COLOR_WHITE
 _set_color
         sta ColorRAM+$03c1,y
+.endcomment
         iny
-        cpy #$28                            ; full line printed?
+        iny
+        cpy #$28 * 2                        ; full line printed?
         bne _loop_print_logo                ; no -> continue loop
         rts
 

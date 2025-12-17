@@ -52,6 +52,28 @@ initF256                                ; initialize F256
         lda #$00
         sta VKY_TM0_ADDR_H
 
+        ; set up Tilemap 1 - 8x8 tiles (text scrolling) (middle)
+
+        lda #$11                        ; 8x8 tiles, enable
+        sta VKY_TM1_CTRL
+        lda #42                         ; 2 tiles wider than screen allows scrolling
+        sta VKY_TM1_SIZE_X
+        lda #25                         ; 25 rows in text screen
+        sta VKY_TM1_SIZE_Y
+
+        lda #$00
+        sta VKY_TM1_POS_X_L
+        sta VKY_TM1_POS_X_H
+        sta VKY_TM1_POS_Y_L
+        sta VKY_TM1_POS_Y_H
+
+        lda #<tilemap_scroll
+        sta VKY_TM1_ADDR_L
+        lda #>tilemap_scroll
+        sta VKY_TM1_ADDR_M
+        lda #$00
+        sta VKY_TM1_ADDR_H
+
         ; set up Tilemap 2 - 8x8 tiles (jungle scene) (background)
 
         lda #$11                        ; 8x8 tiles, enable
@@ -74,11 +96,6 @@ initF256                                ; initialize F256
         lda #$00
         sta VKY_TM2_ADDR_H
 
-        ; disable tilemaps: 1
-
-        lda #$00
-        sta VKY_TM1_CTRL
-
         ; disable bitmaps: 0,1,2
 
         lda #$00
@@ -99,11 +116,10 @@ initF256                                ; initialize F256
 
         ; assign the display layers
 
-        lda #$04                        ; Layer 0: Tilemap 1 (enabled)
-        sta VKY_LAYER_CTRL_0            ; Layer 1: (Tilemap 0, disabled)
-        lda #$06                        ; Layer 2: Tilemap 0 (enabled)
+        lda #$54                        ; Layer 0: Tilemap 0 (enabled)
+        sta VKY_LAYER_CTRL_0            ; Layer 1: Tilemap 1 (enabled)
+        lda #$06                        ; Layer 2: Tilemap 2 (enabled)
         sta VKY_LAYER_CTRL_1
-
 
         jsr initSwapAreaC000            ; prepare $c000 for being used as swap area
         jsr initSpritesF256
@@ -2138,6 +2154,12 @@ tilemap_bg
 
         .align $100                     ; align tilemap_text to word
 tilemap_fg
+        ;.fill 42*25*2, [$20,$05]        ; reserve space for 8x8 tiles
+        .fill 42*25*2, [$00,$00]        ; reserve space for 8x8 tiles
+                                        ; default tile: blank tile, in tileset 0
+
+        .align $100                     ; align tilemap_text to word
+tilemap_scroll
         ;.fill 42*25*2, [$20,$05]        ; reserve space for 8x8 tiles
         .fill 42*25*2, [$00,$00]        ; reserve space for 8x8 tiles
                                         ; default tile: blank tile, in tileset 0
