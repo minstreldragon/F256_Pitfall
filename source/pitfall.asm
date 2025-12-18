@@ -453,8 +453,8 @@ _loop_init_SID
 .comment
         lda zp_initialized                  ; 0: cold start, 1: game initialized, restart
         bne _skip_wait_for_f1
-        jsr display_scroll_text             ; scroll copyright text until player presses F1
 .endcomment
+        jsr display_scroll_text             ; scroll copyright text until player presses F1
 
 _skip_wait_for_f1
         jsr display_activision_logo
@@ -479,6 +479,7 @@ l8078
 ;        lda #5
 ;        sta game_loop_delay
 game_loop
+        lda #4
         jsr delay_game                  ; delay the game by a fixed number of frames
 ;        jsr handleEvents                    ; F256: handle pending events
 ;        lda irqFrameCounter
@@ -534,8 +535,8 @@ _game_loop_skip_3
         jmp warm_start
 
 delay_game
-        pha
-        lda #4
+;        pha
+;        lda #4
         sta game_loop_delay
 delay_game_loop
         jsr handleEvents                    ; F256: handle pending events
@@ -545,7 +546,7 @@ delay_game_loop
         sta last_irq_counter
         dec game_loop_delay
         bne delay_game_loop
-        pla
+;        pla
         rts
 
 last_irq_counter
@@ -1826,6 +1827,7 @@ l8792
         sta zp_player_y_pos
         ldx #$18                            ; repeat 24 times
 _loop_player_drowns
+        lda #4
         jsr delay_game                  ; delay the game and handle events
 ;;;        jsr animate_drown_one_line          ; Harry drowns one line at a time
         jsr updateHarrySpriteDrowningF256
@@ -1879,6 +1881,7 @@ _start_next_life_underground
         sta zp_scorpion_sprite_id
 
 loop_drop_harry_into_jungle
+        lda #4
         jsr delay_game                  ; delay the game and handle events
 
         sty zp_player_y_pos                 ; update y position of falling Harry
@@ -2034,17 +2037,19 @@ _sound_start_release
 
 scroll_copyright_text
 l88cc
-        inc zp_text_scroll_delay            ; inc. text scroll delay
-        lda zp_text_scroll_delay
-        cmp #$40                            ; text scroll delay = max value?
-        bne _exit                           ; no ->
-        lda #$00
-        sta zp_text_scroll_delay            ; reset text scroll delay
+        lda #1
+        jsr delay_game                  ; delay the game by a fixed number of frames
+;;        inc zp_text_scroll_delay            ; inc. text scroll delay
+;;        lda zp_text_scroll_delay
+;;        cmp #$40                            ; text scroll delay = max value?
+;;        bne _exit                           ; no ->
+;;        lda #$00
+;;        sta zp_text_scroll_delay            ; reset text scroll delay
 
         ; soft scroll copyright text
-_wait_vertical_blanking
-        lda VicScreenCtrlReg1               ; wait for MSB raster line = 1
-        bpl _wait_vertical_blanking
+;;_wait_vertical_blanking
+;;        lda VicScreenCtrlReg1               ; wait for MSB raster line = 1
+;;        bpl _wait_vertical_blanking
 
         lda zp_raster_scroll_x              ; horizontal raster scroll
         beq scroll_text_next_char           ; if 0 -> reload with 7
@@ -2058,12 +2063,13 @@ l88e4
         stx zp_raster_scroll_x
         ldx #$00                            ; index for text scroll loop
 _loop_scroll_text
-        lda screen_scroll_text+1,x          ; scroll one charater one cell to the left
+        lda screen_scroll_text+2,x          ; scroll one charater one cell to the left
         sta screen_scroll_text+0,x          ; scroll one charater one cell to the left
-        lda ColorRAM+$03c1,x                ; scroll color RAM one cell to the left
-        sta ColorRAM+$03c0,x
+;;        lda ColorRAM+$03c1,x                ; scroll color RAM one cell to the left
+;;        sta ColorRAM+$03c0,x
         inx                                 ; inc index
-        cpx #TEXT_WIDTH                     ; index < # characters in line (40)?
+        inx
+        cpx #2 * (TEXT_WIDTH + 1)           ; index < # characters in line (2 * 40)?
         bne _loop_scroll_text
 
         ldx zp_text_scroll_index            ; index to current text scroll character
@@ -2076,16 +2082,16 @@ _loop_scroll_text
         rts
 
 _print_next_scroll_char
-        sta screenRAM+$03e7                 ; store new character at end of scroll line
-        ldx #COLOR_WHITE
-        cmp #$3c                            ; Activision rainbow colors character?
-        beq _set_rainbow_colors_cram        ; yes ->
-        cmp #$3d                            ; rainbow color character / "A"?
-        bne _set_color_ram                  ; no ->
-_set_rainbow_colors_cram
-        ldx #COLOR_BROWN
-_set_color_ram
-        stx ColorRAM+$03e7
+        sta screen_scroll_text + 2*40         ; store new character at end of scroll line
+;;        ldx #COLOR_WHITE
+;;        cmp #$3c                            ; Activision rainbow colors character?
+;;        beq _set_rainbow_colors_cram        ; yes ->
+;;        cmp #$3d                            ; rainbow color character / "A"?
+;;        bne _set_color_ram                  ; no ->
+;;_set_rainbow_colors_cram
+;;        ldx #COLOR_BROWN
+;;_set_color_ram
+;;        stx ColorRAM+$03e7
         rts
 
 scroll_text_data
@@ -2268,17 +2274,25 @@ display_scroll_text                     ; scroll copyright text until player pre
 
 _wait_for_f1                            ; wait for F1 key
         jsr scroll_copyright_text           ; await vertical blanking intervall, scroll text
-        lda #$10                            ; expected Port B input value (keyboard col)
-        ldy #$fe                            ; output value Port A (keyboard row)
-        jsr read_keyboard                   ; check for F1 key
-        bcc _wait_for_f1                    ; key not pressed ->
+        sec
+        lda #7
+        sbc zp_raster_scroll_x          ; F256 - scroll to the left (invert C64 logic)
+;;        asl                             ; F256 - remove for Foenix IDE
+        sta VKY_TM1_POS_X_L             ; F256
+
+        jsr handleEvents                    ; F256: handle pending events
+;;        lda #$10                            ; expected Port B input value (keyboard col)
+;;        ldy #$fe                            ; output value Port A (keyboard row)
+;;        jsr read_keyboard                   ; check for F1 key
+;;        bcc _wait_for_f1                    ; key not pressed ->
+        jmp _wait_for_f1                ; F256: wait for any key (for now...)
 
         ; debounce the key, i.e. check two times in a row
 
-        lda #$10                            ; parameters for F1 key
-        ldy #$fe
-        jsr read_keyboard                   ; check for F1 key
-        bcc _wait_for_f1                    ; key not pressed ->
+;;        lda #$10                            ; parameters for F1 key
+;;        ldy #$fe
+;;        jsr read_keyboard                   ; check for F1 key
+;;        bcc _wait_for_f1                    ; key not pressed ->
         rts
 
 Pitfall_NMI
