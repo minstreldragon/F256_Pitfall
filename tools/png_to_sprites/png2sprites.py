@@ -27,6 +27,8 @@ COL_LIGHTGREEN = 0xd
 COL_LIGHTBLUE = 0xe
 COL_LIGHTGREY = 0xf
 COL_SOLID_BLACK = 0x10
+COL_QUICKSAND = 0x11
+COL_INGOT = 0x12
 
 background_color = COL_PURPLE
 
@@ -95,6 +97,8 @@ def convertPngToSprites(img, palette, width, height):
         for dy in range(TILE_HEIGHT):
             for dx in range(TILE_WIDTH):
                 px = getColor(img, tx + dx, ty + dy, palette)
+                if (tile >= 30) and (tile <= 31) and (px == COL_BROWN):
+                    px = COL_INGOT               # special case: Gold/Silver ingot
                 outdata.append(px)
 #            for dx in range(16-TILE_WIDTH):
 #                outdata.append(0)       # fill in rest of sprite as transparent

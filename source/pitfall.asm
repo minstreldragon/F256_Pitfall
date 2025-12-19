@@ -2037,8 +2037,6 @@ _sound_start_release
 
 scroll_copyright_text
 l88cc
-        lda #1
-        jsr delay_game                  ; delay the game by a fixed number of frames
 ;;        inc zp_text_scroll_delay            ; inc. text scroll delay
 ;;        lda zp_text_scroll_delay
 ;;        cmp #$40                            ; text scroll delay = max value?
@@ -2120,6 +2118,7 @@ activision_logo_data
 display_activision_logo
         lda #$00
         sta zp_raster_scroll_x              ; horizontal raster scroll
+        sta VKY_TM1_POS_X_L                 ; F256
         tax
         tay                                 ; iterator (40 columns)
 _loop_print_logo
@@ -2269,10 +2268,12 @@ read_joystick
 l8a57
 display_scroll_text                     ; scroll copyright text until player presses F1
         lda #$00
-        sta zp_text_scroll_delay
+;;        sta zp_text_scroll_delay
         sta zp_text_scroll_index
 
 _wait_for_f1                            ; wait for F1 key
+        lda #1
+        jsr delay_game                  ; delay the game by a fixed number of frames
         jsr scroll_copyright_text           ; await vertical blanking intervall, scroll text
         sec
         lda #7
@@ -2280,12 +2281,16 @@ _wait_for_f1                            ; wait for F1 key
 ;;        asl                             ; F256 - remove for Foenix IDE
         sta VKY_TM1_POS_X_L             ; F256
 
-        jsr handleEvents                    ; F256: handle pending events
+;;        jsr handleEvents                    ; F256: handle pending events
 ;;        lda #$10                            ; expected Port B input value (keyboard col)
 ;;        ldy #$fe                            ; output value Port A (keyboard row)
 ;;        jsr read_keyboard                   ; check for F1 key
 ;;        bcc _wait_for_f1                    ; key not pressed ->
-        jmp _wait_for_f1                ; F256: wait for any key (for now...)
+        lda keyboardCode                ; keyboard matrix code (no key: 0)
+        cmp #KEY_CODE_F1                ; check lower range of keys 'F1' and 'F2' (<shift> F1)
+        bcc _wait_for_f1                ; key not pressed ->
+        cmp #KEY_CODE_F2+1              ; check upper range
+        bpl _wait_for_f1                ; key not pressed ->
 
         ; debounce the key, i.e. check two times in a row
 

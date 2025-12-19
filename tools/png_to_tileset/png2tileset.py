@@ -26,7 +26,8 @@ COL_LIGHTGREEN = 0xd
 COL_LIGHTBLUE = 0xe
 COL_LIGHTGREY = 0xf
 COL_SOLIDBLACK = 0x10
-COL_WATER_TAR = 0x11
+COL_QUICKSAND = 0x11
+COL_INGOT = 0x12
 
 def tile_is_quicksand(id):
     return (id >= 0x10 and id <= 0x19) or (id >= 28 and id <= 0x2d)
@@ -71,7 +72,7 @@ def convertPngToBin(img, palette, width, height):
                 for dx in range(TILE_WIDTH):
                     px = getColor(img, tx + dx, ty + dy, palette)
                     if tile_is_quicksand(tile) and px == COL_LIGHTBLUE:
-                        px = COL_WATER_TAR
+                        px = COL_QUICKSAND
                     outdata.append(px)
             tile = tile + 1
             if tile >= NUM_TILES:
