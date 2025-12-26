@@ -374,7 +374,7 @@ file_error
 fileError
         .byte $00
 
-timer_events
+frame_events
         .fill TIMER_EVENT_MAX+1,$00
 
 tblEventKinds
@@ -461,7 +461,7 @@ clut_start                              ; initial CLUT values and additional col
         .byte $f8,$77,$7a,$00    ; quicksand: light blue
         .byte $44,$cc,$ff,$00    ; ingot:     light yellow (gold)
 clut_end
-        .byte $e0,$e0,$e0,$00    ; light grey (silver)
+        .byte $c0,$c0,$c0,$00    ; light grey (silver)
 
 
 .comment
@@ -1611,29 +1611,38 @@ _disableSpriteJ1
 .endcomment
 
 
-.if FOENIX_IDE
 schedule_frame                          ; Foenix IDE workaround
+        lda #kernel.args.timer.FRAMES | kernel.args.timer.QUERY
+        sta kernel.args.timer.units
+        jsr kernel.Clock.SetTimer
+        sta frames
+
         inc frames
         lda #kernel.args.timer.FRAMES
         sta kernel.args.timer.units
         lda frames
         sta kernel.args.timer.absolute
-        lda #$01
-        sta kernel.args.timer.cookie
+;        lda #$01
+        sta kernel.args.timer.cookie    ; cookie = target frame
         jsr kernel.Clock.SetTimer
         rts
 
 frames                                  ; Foenix IDE workaround
         .byte $00
-.endif
 
 event_timer_handler
+        lda event.timer.value
+        cmp event.timer.cookie
+        bne _exit
 .if FOENIX_IDE
         sei                             ; Foenix IDE workaround
         jsr customIsr                   ; Foenix IDE workaround
         cli                             ; Foenix IDE workaround
-        jsr schedule_frame
+        jsr schedule_frame              ; set up next frame timer
 .endif
+        lda #$01                        ; mark timer event as done
+        sta frame_events
+_exit
         rts
 
 .comment
@@ -1642,7 +1651,7 @@ event_timer_handler
         bcs _exit
 
         lda #$01
-        sta timer_events,x
+        sta frame_events,x
 _exit
         rts
 .endcomment

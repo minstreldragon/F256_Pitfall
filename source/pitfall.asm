@@ -449,6 +449,7 @@ _loop_init_SID
 
 
         jsr init_game
+        jsr updateSpritePositionsF256       ; TODO, EXPERIMENTAL: move to interrupt routine
 
 .comment
         lda zp_initialized                  ; 0: cold start, 1: game initialized, restart
@@ -458,13 +459,12 @@ _loop_init_SID
 
 _skip_wait_for_f1
         jsr display_activision_logo
-.comment
 _wait_for_joystick_input
+        jsr handleEvents                    ; F256: handle pending events
         jsr read_joystick
         and #$0f                            ; extract joystick directions
         cmp #$0f                            ; any direction selected?
         beq _wait_for_joystick_input        ; no -> continue waiting, don't start game just yet
-.endcomment
 
         lda zp_ntsc_pal
         sta zp_frame_counter                ; counts down number of frames in a second
@@ -547,6 +547,18 @@ delay_game_loop
         dec game_loop_delay
         bne delay_game_loop
 ;        pla
+        rts
+
+delay_frame
+        lda #$0
+        sta frame_events
+.if !FOENIX_IDE
+        jsr schedule_frame
+.endif
+_loop
+        jsr handleEvents                    ; F256: handle pending events
+        lda frame_events
+        beq _loop
         rts
 
 last_irq_counter
@@ -2273,7 +2285,7 @@ display_scroll_text                     ; scroll copyright text until player pre
 
 _wait_for_f1                            ; wait for F1 key
         lda #1
-        jsr delay_game                  ; delay the game by a fixed number of frames
+        jsr delay_frame                  ; delay the game by a fixed number of frames
         jsr scroll_copyright_text           ; await vertical blanking intervall, scroll text
         sec
         lda #7
@@ -2565,6 +2577,10 @@ l8c0a
         sta zp_lives                    ; # of lives left, including current
         lda #$c4                        ; start room: $c4 (seed)
         sta zp_room
+;-------------- testing silver bar
+;        ldx #45
+;        jsr loop_move_room_right
+;--------------
         lda #$20
         sta zp_score_100
         sta zp_minutes
@@ -2965,6 +2981,7 @@ _init_treasure_multicolor_pal
 _init_treasure_multicolor_ntsc
         lda treasure_color_table,x
         tay
+        jsr setTreasureColor            ; F256 experimental
         lda treasure_sprite_id_table,x
         jsr objects_set_sprite_id_and_color ; set id and color for sprites 3,4,5
 
@@ -5136,8 +5153,10 @@ treasure_sprite_id_table
 l9e1d
 treasure_color_table
         .byte COLOR_WHITE                   ; money
-        .byte COLOR_DARKGREY                ; silver
-        .byte COLOR_BROWN                   ; gold
+;        .byte COLOR_DARKGREY                ; silver
+        .byte COLDEF_SILVER
+;        .byte COLOR_BROWN                   ; gold
+        .byte COLDEF_GOLD
         .byte COLOR_RED                     ; ring
 
 quicksand_data_rom                      ; compressed screen data for pits
