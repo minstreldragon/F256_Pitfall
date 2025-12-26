@@ -1884,6 +1884,8 @@ _start_next_life_underground
         sta zp_player_orientation           ; player orientation: 0: facing right, 1: facing left
         sta zp_jump_index                   ; 0: not jumping, >0: jump index, counting up
         cpy #Y_POS_LIFE_INDICATOR           ; start new life above ground?
+        lda #0                              ; F256: put harry sprite in foreground
+        sta harry_sprite_layer
         beq loop_drop_harry_into_jungle     ; yes ->
 
         sta zp_scorpion_x_pos+1             ; reset scorpion to make player safe
@@ -1920,6 +1922,8 @@ _skip_change_sprite
         bne loop_drop_harry_into_jungle
         stx zp_collision_scorpion           ; 0: no collision, 1: collision with scorpion
         stx zp_collision_surface            ; sprite-to-sprite collisions on surface level
+        lda #1                              ; F256: hide harry sprite by foreground tile layer
+        sta harry_sprite_layer
         rts
 
 
@@ -2409,10 +2413,10 @@ _loop_reset_screen_data
         lda #0
         sta zp_column
         lda #CHAR_DENSE_LEAVES          ; tile: dense leaves
-        jsr draw_tile_row               ; draw jungle ground (upper) (yellow)
-        jsr draw_tile_row
-        jsr draw_tile_row               ; draw jungle ground (lower) (red)
-        jsr draw_tile_row
+        jsr draw_tile_bg_row            ; draw jungle ground (upper) (yellow)
+        jsr draw_tile_bg_row
+        jsr draw_tile_bg_row            ; draw jungle ground (lower) (red)
+        jsr draw_tile_bg_row
 
 .comment
         lda #$1e
@@ -2775,11 +2779,15 @@ _check_for_vine
         lda #0
         sta zp_column
         lda #CHAR_SURFACE_FLOOR         ; tile: jungle surface floor
-        jsr draw_tile_row               ; draw jungle ground (upper) (yellow)
-        jsr draw_tile_row
+        jsr draw_tile_bg_row            ; draw jungle ground (upper) (yellow)
+        jsr draw_tile_bg_row
+        lda #CHAR_BLACK                 ; clear foreground layer (pits)
+        dec zp_row
+        jsr draw_tile_fg_row
+
         lda #CHAR_SURFACE_EARTH         ; tile: jungle surface earth
-        jsr draw_tile_row               ; draw jungle ground (lower) (red)
-        jsr draw_tile_row
+        jsr draw_tile_bg_row            ; draw jungle ground (lower) (red)
+        jsr draw_tile_bg_row
 
         ; draw underground cavern (black background color area)
 
@@ -2787,7 +2795,7 @@ _check_for_vine
         lda #CHAR_BLACK                 ; tile: underground passage background (black)
 _draw_passage_loop
                                         ; rows 18-23
-        jsr draw_tile_row               ; clear underground passage and below
+        jsr draw_tile_bg_row            ; clear underground passage and below
         dex
         bne _draw_passage_loop
 
@@ -2796,7 +2804,7 @@ _draw_passage_loop
         ldy #22                         ; row 22
         sty zp_row
         lda #CHAR_UNDERGROUND_FLOOR     ; tile: underground passage floor (brown)
-        jsr draw_tile_row
+        jsr draw_tile_bg_row
 
         ; initialize rolling logs and scorpion
 
@@ -3107,7 +3115,7 @@ draw_hole
         lda #$24                            ; char: upper left edge of hole
         jsr draw_tile_bg
         lda #CHAR_HOLE_UPPER                ; char: hole upper part
-        jsr draw_tile_repeat
+        jsr draw_tile_bg_repeat
         lda #$22                            ; char: upper right edge of hole
         jsr draw_tile_bg
 
@@ -3117,9 +3125,19 @@ draw_hole
         lda #$25                            ; char: lower left edge of hole
         jsr draw_tile_bg
         lda #CHAR_HOLE_LOWER                ; char: hole lower part
-        jsr draw_tile_repeat
+        jsr draw_tile_bg_repeat
         lda #$23                            ; char: lower right edge of hole
         jsr draw_tile_bg
+
+        ; draw the bottom half of the tile on the foreground layer
+        ; this will hide part of Harry's body when traversing the hole
+        sty zp_column
+        lda #$25                            ; char: lower left edge of hole
+        jsr draw_tile_fg
+        lda #CHAR_HOLE_LOWER                ; char: hole lower part
+        jsr draw_tile_fg_repeat
+        lda #$23                            ; char: lower right edge of hole
+        jsr draw_tile_fg
 
         inc zp_row                          ; draw upper part of earth
         sty zp_column
@@ -3127,7 +3145,7 @@ draw_hole
         lda #$27                            ; left edge of hole (earth)
         jsr draw_tile_bg
         lda #CHAR_BLACK                     ; char: blank
-        jsr draw_tile_repeat
+        jsr draw_tile_bg_repeat
         lda #$26                            ; right edge of hole (earth)
         jsr draw_tile_bg
 
@@ -3137,7 +3155,7 @@ draw_hole
         lda #$27                            ; left edge of hole (earth)
         jsr draw_tile_bg
         lda #CHAR_BLACK                     ; char: blank
-        jsr draw_tile_repeat
+        jsr draw_tile_bg_repeat
         lda #$26                            ; right edge of hole (earth)
         jsr draw_tile_bg
 
@@ -3296,7 +3314,7 @@ _randomiz_transition_char_cont
         ldx #5                          ; # of lines to draw: 6
         lda #CHAR_JUNGLE_BACKGROUND     ; char: jungle background (green)
 _draw_jungle_background_loop
-        jsr draw_tile_row               ; clear jungle background (behind trunks)
+        jsr draw_tile_bg_row            ; clear jungle background (behind trunks)
         dex
         bne _draw_jungle_background_loop
 

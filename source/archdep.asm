@@ -1052,13 +1052,22 @@ _updateSpritePosL
         lda #$00                        ; y-coordinate, high byte
         sta VKY_SP0_POS_Y_H,y
 
-        lda #%00100001                  ; size: 24x24, layer 0, LUT 0, Enable
+        ; Harry is displayed in sprite layer 1, so he can be hidden
+        ; behinde the foreground tile layer
+        lda harry_sprite_layer
+        asl
+        asl
+        asl
+        ora #%00100001                  ; size: 24x24, layer 1, LUT 0, Enable
         sta VKY_SP0_CTRL,y              ; enable sprite
 
         ply
         plx
         pla
         rts
+
+harry_sprite_layer
+        .byte $01                       ; sprite layer for harry
 
 
 updateVineSpritesF256
@@ -2107,12 +2116,22 @@ draw_tile_fg
         rts
 
 
-draw_tile_repeat
+draw_tile_fg_repeat
+        phx                             ; x: # of repeats
+        phy
+        pha
+        ldy zp_row
+        jsr get_lineptr_tilemap_fg
+        jmp draw_tile_repeat_common
+
+draw_tile_bg_repeat
         phx                             ; x: # of repeats
         phy
         pha
         ldy zp_row
         jsr get_lineptr_tilemap_bg
+
+draw_tile_repeat_common
         lda zp_column
         asl
         tay                             ; target tile column * 2
@@ -2128,11 +2147,18 @@ _col_loop
         plx
         rts
 
-
-draw_tile_row                           ; draw a horizontal row of tiles
+draw_tile_fg_row
         phx
         ldx #40
-        jsr draw_tile_repeat
+        jsr draw_tile_fg_repeat
+        jmp draw_tile_row_common
+
+draw_tile_bg_row
+        phx
+        ldx #40
+        jsr draw_tile_bg_repeat
+
+draw_tile_row_common                    ; draw a horizontal row of tiles
         ldx #0
         stx zp_column
         inc zp_row
