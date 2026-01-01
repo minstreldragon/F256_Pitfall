@@ -2489,6 +2489,7 @@ l8b5b
         rts
 
 
+.comment
 setup_sprite_data
 l8b93
         lda #<sprite_data_rom_player
@@ -2570,6 +2571,7 @@ _inc_src_done
         sta zp_dst+1
         jsr decompress_rle_data
         rts
+.endcomment
 
 
 init_game
@@ -4389,6 +4391,7 @@ _nmi_handling_done
         rts                             ; F256: return with a simple rts
 
 
+.comment
 
 l9625
 sprite_data_rom_player
@@ -4886,6 +4889,7 @@ l9b47                                   ; Character set (RLE encoded)
         .byte $80,$ff,$82,$db,$83,$00           ; $46 (Trademark: M) RAM: $6284
 
         .byte $ff                               ; end of RLE encoded block
+.endcomment
 
 
 small_branch_pattern_char_start               ; F256

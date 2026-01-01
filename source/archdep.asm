@@ -7,6 +7,16 @@ initF256                                ; initialize F256
         lda #>event
         sta kernel.args.events+1
 
+        jsr initSwapAreaC000            ; prepare $c000 for being used as swap area
+
+        lda VKY_MID                     ; Machine ID
+        and #$7f                        ; check for F256K2 (MMU or Core2X)
+        cmp #$11                        ; Machine ID for F256K2?
+        bne _skipLcdImage
+        jsr unpackLcdIcon               ; unpack the LCD icon to $020000
+        jsr uploadLcdImage              ; upload the LCD icon
+
+_skipLcdImage
         ; setup tile graphics
 
         lda #$00                        ; Set the I/O page to #1
@@ -121,7 +131,6 @@ initF256                                ; initialize F256
         lda #$06                        ; Layer 2: Tilemap 2 (enabled)
         sta VKY_LAYER_CTRL_1
 
-        jsr initSwapAreaC000            ; prepare $c000 for being used as swap area
         jsr initSpritesF256
         jsr initNumberSpritesF256
 
@@ -2181,6 +2190,334 @@ _row_loop
 .endcomment
 
 
+; ZX7 decompressor
+; by Peter Ferrie (peter.ferrie@gmail.com)
+
+; Parameters:
+;   zpSrcPtr: source address
+;   zpDstPtr: destination address
+;
+; Used Variables
+;   zpEcx = $e4                         ; 16 bit
+;   zpLastZx7
+;   zpTmpZx7
+
+; unpack zx7
+unpack_zx7
+    lda #$00
+    sta zpLastZx7
+    sta zpEcx+0
+    sta zpEcx+1
+
+dzx7s_copy_byte_loop
+    jsr getput                          ; fetch src byte, put to dst buffer
+dzx7s_main_loop
+    jsr dzx7s_next_bit                  ; read next source bit
+    bcc dzx7s_copy_byte_loop            ; if bit==0: copy next byte verbatim
+
+    sty zpTmpZx7                        ; zpTmpZx7 = 0 (counter)
+_dzx7s_len_size_loop
+    inc zpTmpZx7                        ; count successive '0' bits (following '1' bit)
+    jsr dzx7s_next_bit                  ; read next source bit
+    bcc _dzx7s_len_size_loop
+    bcs dzx7s_len_value_skip
+
+dzx7s_next_bit
+    asl zpLastZx7
+    bne dzx7s_next_bit_ret
+    jsr dzx7FetchByte                   ; fetch byte from src pointer
+    sec                                 ; mark 'zpLastZx7' byte as containing bits
+    rol
+    sta zpLastZx7
+
+dzx7s_next_bit_ret
+    rts
+
+dzx7s_len_value_loop
+    jsr dzx7s_next_bit                  ; read next source bit
+
+dzx7s_len_value_skip
+    rol zpEcx+0                         ; ecx = 1 << zpTmpZx7
+    rol zpEcx+1
+    bcs dzx7s_next_bit_ret              ; EOF: 16 zero-bits read ->
+    dec zpTmpZx7
+    bne dzx7s_len_value_loop
+    inc zpEcx+0                         ; minimum for repetition: 2
+    bne _skip_inc_ecx
+    inc zpEcx+1
+_skip_inc_ecx
+    jsr dzx7FetchByte                   ; fetch byte from src pointer
+    rol                                 ; 7 or 12 bit address?
+    sta zpTmpZx7                        ; low byte offset
+    tya                                 ; (A = 0)
+    bcc _dzx7s_offset_end               ; 7 bit address ->
+    lda #$10                            ; read additional 4 bits for hb address
+
+_dzx7s_rld_next_bit
+    pha
+    jsr dzx7s_next_bit                  ; read next source bit
+    pla
+    rol
+    bcc _dzx7s_rld_next_bit
+    tax
+    inx
+    txa
+    lsr
+
+_dzx7s_offset_end
+    sta zpTmpZx7+1                      ; high byte offset
+    ror zpTmpZx7+0                      ; rotate highest bit into address lb
+    lda zpSrcPtr+1                      ; temporarily store src pointer to stack
+    pha
+    lda zpSrcPtr+0
+    pha
+
+    lda zpDstPtr+0                      ; set local (new) src pointer
+    sbc zpTmpZx7+0                      ; (relative to current address)
+    sta zpSrcPtr+0
+;    lda zpDstPtr+1                    ; leftover?
+    lda dstPage
+    sbc zpTmpZx7+1
+    sta zpSrcPtr+1
+
+; set source bank
+    jsr dzx7SetSourceBank
+
+another_getput
+    jsr getput2                         ; fetch src byte, put to dst buffer
+    jsr dececx
+    ora zpEcx+1
+    bne another_getput
+    pla                                 ; restore src pointer from stack
+    sta zpSrcPtr+0
+    pla
+    sta zpSrcPtr+1
+    bne dzx7s_main_loop
+
+dececx
+    ldx zpEcx+0
+    bne _skip_ecx_dec
+    dec zpEcx+1
+_skip_ecx_dec
+    dex
+    stx zpEcx+0
+    txa
+    rts
+
+getput                                  ; fetch src byte, put to dst buffer
+    jsr dzx7FetchByte                   ; fetch byte from src pointer
+    jsr dzx7StoreByte                   ; store byte in dst pointer
+    rts
+
+getput2
+    jsr dzx7FetchDstByte
+    jsr dzx7StoreByte                   ; store byte in dst pointer
+    rts
+
+dzx7SetSourceBank
+    ; set source bank
+    lsr
+    lsr
+    lsr
+    lsr
+    and #$0e
+    ora dstBankZx7                      ; destination pointer $020000
+    sta bitmapBank2
+    jsr setSwapAreaA000
+; adjust source ptr
+    lda zpSrcPtr+1
+    and #$1f
+    adc #$a0
+    sta zpSrcPtr+1
+    rts
+
+dzx7FetchDstByte
+    ldy #$00
+    lda (zpSrcPtr),y                    ; read byte from source pointer
+    inc zpSrcPtr+0                      ; increment source pointer
+    bne _end
+    pha
+    inc zpSrcPtr+1
+    lda zpSrcPtr+1
+    cmp #$c0
+    bne _noBankChange
+    lda #$a0
+    sta zpSrcPtr+1
+    inc bitmapBank2
+    inc bitmapBank2
+    lda bitmapBank2
+    jsr setSwapAreaA000
+_noBankChange
+    pla
+_end
+    rts
+
+dzx7FetchByte
+    ldy #$00
+    lda (zpSrcPtr),y                    ; read byte from source pointer
+    inc zpSrcPtr+0                      ; increment source pointer
+    bne _end
+    inc zpSrcPtr+1
+_end
+    rts
+
+dzx7StoreByte
+    sta (zpDstPtr),y                    ; store byte in dst pointer
+    inc zpDstPtr+0
+    bne _skip_inc_dst
+    pha
+    inc dstPage                         ; increment destination page (0-based)
+    inc zpDstPtr+1                      ; increment dst pointer (hb)
+    lda zpDstPtr+1
+    cmp #$e0
+    bne _noBankChange
+    lda #$c0
+    sta zpDstPtr+1                      ; reset pointer for next bank
+    inc bitmapBank
+    inc bitmapBank
+    lda bitmapBank
+    php
+    jsr setSwapAreaC000
+    plp
+_noBankChange
+    pla
+_skip_inc_dst
+    rts
+
+
+unpackLcdIcon
+    lda #$20
+    sta dstBankZx7
+
+    ldx #0
+_loop
+    phx
+
+    lda lcd_icon_packed_tbl_lb,x        ; set source pointer (packed bitmap data)
+    sta zpSrcPtr+0
+    lda lcd_icon_packed_tbl_hb,x
+    sta zpSrcPtr+1
+
+    lda #$00                            ; set destination pointer (bitmap)
+    sta zpDstPtr+0
+    sta dstPage
+    lda #$c0                            ; bitmap pointer
+    sta zpDstPtr+1
+
+    lda dstBankZx7
+    sta bitmapBank
+    jsr setSwapAreaC000
+
+    jsr unpack_zx7
+
+    clc
+    lda dstBankZx7
+    adc #$10
+    sta dstBankZx7
+
+    plx
+    inx
+    cpx #3
+    bne _loop
+
+    jsr resetSwapAreaA000               ; restore original configuration for $a000
+    jsr resetSwapAreaC000               ; restore original configuration for $c000
+
+    rts
+
+dstBankZx7
+    .byte $00                           ; destination bank base address
+
+bitmapBank
+    .byte $00                           ; destination bank (modified during extraction)
+
+bitmapBank2
+    .byte $00
+
+dstPage
+    .byte $00
+
+
+uploadLcdImage
+        lda #LCD_CMD_CASET              ; CASET - Column Address Set
+        sta LCD_CMD_CMD
+        lda #>0                         ; XStart high
+        sta LCD_CMD_DTA
+        lda #<0                         ; XStart low
+        sta LCD_CMD_DTA
+        lda #>(LCD_IMAGE_WIDTH-1)       ; XEnd high
+        sta LCD_CMD_DTA
+        lda #<(LCD_IMAGE_WIDTH-1)       ; XEnd low
+        sta LCD_CMD_DTA
+
+        lda #LCD_CMD_RASET              ; CASET - Row Address Set
+        sta LCD_CMD_CMD
+        lda #>LCD_IMAGE_BAND            ; XStart high (skip black band area)
+        sta LCD_CMD_DTA
+        lda #<LCD_IMAGE_BAND            ; XStart low
+        sta LCD_CMD_DTA
+        lda #>(LCD_IMAGE_BAND+LCD_IMAGE_HEIGHT-1)
+        sta LCD_CMD_DTA                 ; XEnd high
+        lda #<(LCD_IMAGE_BAND+LCD_IMAGE_HEIGHT-1)
+        sta LCD_CMD_DTA                 ; XEnd low
+
+        lda #LCD_CMD_MAD                ; MADCTL register, which controls in which direction pixel writing occurs
+        sta LCD_CMD_CMD
+        lda #$00                        ; normal order (up to down, left to right, RGB pixel values)
+        sta LCD_CMD_DTA
+
+        lda #LCD_CMD_RAMWR              ; RAMWR - Memory Write
+        sta LCD_CMD_CMD
+
+; todo: send data to LCD display
+        lda #$00                            ; set destination pointer (bitmap)
+        sta zpSrcPtr+0
+        lda #$a0
+        sta zpSrcPtr+1
+
+        lda #$20
+        sta bitmapBank
+        jsr setSwapAreaA000
+
+        lda #$02                        ; in total, send $20d00 bytes
+        sta _pagesHigh
+        ldx #$0d
+        ldy #$00                        ; one loop over y sends $100 bytes
+_loop
+        lda (zpSrcPtr),y                ; read low byte from source pointer
+        sta LCD_PIX_LO
+        iny
+        lda (zpSrcPtr),y                ; read low byte from source pointer
+        sta LCD_PIX_HI
+        iny
+        bne _loop
+
+        inc zpSrcPtr+1                  ; next page
+        lda zpSrcPtr+1
+        cmp #$c0                        ; end of bank reached?
+        bne _noBankChange               ; no ->
+        lda #$a0
+        sta zpSrcPtr+1
+        inc bitmapBank
+        inc bitmapBank
+        lda bitmapBank
+        jsr setSwapAreaA000
+_noBankChange
+        dex
+        bne _loop
+
+        dec _pagesHigh
+        bpl _loop
+
+        jsr resetSwapAreaA000           ; restore original configuration for $a000
+
+        rts
+
+
+_pagesHigh
+        .byte $00
+
+
         .align 2                        ; align to even addresses
 vineSpriteXPositionsLeft
         .word $57+8,$57+8,$77+8,$77+8,$97+8,$97+8   ; vine sprites x positions (left side)
@@ -2284,3 +2621,23 @@ sprite_masks_table_hb
         .align $100                     ; align tilemap_text to word
 sprite_masks
         .binary "..\assets\sprite_masks"
+
+lcd_icon_packed_tbl_lb
+        .byte <lcd_icon_packed_1
+        .byte <lcd_icon_packed_2
+        .byte <lcd_icon_packed_3
+
+lcd_icon_packed_tbl_hb
+        .byte >lcd_icon_packed_1
+        .byte >lcd_icon_packed_2
+        .byte >lcd_icon_packed_3
+
+lcd_icon_packed_1
+        .binary "..\assets\pitfall_icon_1.zx7"
+
+lcd_icon_packed_2
+        .binary "..\assets\pitfall_icon_2.zx7"
+
+lcd_icon_packed_3
+        .binary "..\assets\pitfall_icon_3.zx7"
+

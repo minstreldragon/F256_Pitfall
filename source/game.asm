@@ -17,6 +17,6 @@
 
 .include "archdep.asm"                  ; architecture dependent code
 
-        jsr initF256                    ; initialize F256 hardware
-_loop
-        jmp _loop
+;        jsr initF256                    ; initialize F256 hardware
+;_loop
+;        jmp _loop

@@ -7,6 +7,7 @@
 .include "common/f256_rtc.asm"
 .include "common/f256_via.asm"
 .include "common/f256_irq.asm"
+.include "common/f256_lcd.asm"
 
 CRACK :?= true
 BUGFIX :?= true

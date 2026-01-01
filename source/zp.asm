@@ -330,5 +330,15 @@ zp_color_ram
 zp_vic_background_color_0
         .byte ?
 
+zpLastZx7
+        .byte ?
+
+zpEcx
+        .word ?
+
+zpTmpZx7
+        .byte ?
+
+
 zp_end
 

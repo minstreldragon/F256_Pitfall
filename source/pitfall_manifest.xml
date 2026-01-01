@@ -6,5 +6,6 @@
 <segment filename="../assets/tileset.bin" address="0x010000" />
 <segment filename="../assets/number_sprites.bin" address="0x014000" />
 <segment filename="../assets/spriteset.bin" address="0x015000" />
+<!-- 0x020000-0x040cff: unpacked LCD display icon -->
 </segments>
 </pgz>

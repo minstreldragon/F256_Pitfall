@@ -7,7 +7,7 @@ RM := rm
 #ASFLAGS := --quiet
 
 ### Foenix IDE workaround ###
-DEFINES := FOENIX_IDE:=TRUE
+DEFINES := FOENIX_IDE:=FALSE
 
 
 phony: pitfall
