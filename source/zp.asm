@@ -4,6 +4,8 @@
 
 event   .dstruct    kernel.event.event_t
 
+zp_start
+
 zpSrcPtr
         .word ?                         ; a pointer to data to read
 zpDstPtr

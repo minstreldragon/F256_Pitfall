@@ -500,13 +500,13 @@ game_loop
         lda sprite_3_pointer                ; TODO, EXPERIMENTAL set sprite pointer
         jsr objects_set_sprite_id_and_color ; TODO, EXPERIMENTAL set id and color for sprites 3,4,5
 
-;;;;        jsr sound_handler                   ; handle playback of sound effects
+        jsr sound_handler                   ; handle playback of sound effects
         jsr swinging_vine_move              ; move/update the swinging vine
 
         lda zp_jump_index                   ; 0: not jumping, >0: jump index, counting up
         beq _game_loop_skip_1
         jsr player_move
-;;;;        jsr sound_handler
+        jsr sound_handler
 _game_loop_skip_1
         jsr objects_move                    ; move/update objects:
                                             ; scorpion, crocodiles, quicksand, rolling logs
@@ -515,7 +515,7 @@ _game_loop_skip_1
         lda zp_jump_index                   ; 0: not jumping, >0: jump index, counting up
         beq _game_loop_skip_2
         jsr player_move
-;;;;        jsr sound_handler
+        jsr sound_handler
 _game_loop_skip_2
         jsr print_score_and_timer
 
@@ -523,7 +523,7 @@ _game_loop_skip_2
         beq _game_loop_skip_3
         jsr player_move
 _game_loop_skip_3
-;;;;        jsr sound_handler
+        jsr sound_handler
 ;;;;        jsr handle_pause_game               ; handle RUN/STOP and pause the game accordingly
 
         lda zp_minutes                      ; running out of time?
@@ -2162,7 +2162,7 @@ _set_color
 .endcomment
         iny
         iny
-        cpy #$28 * 2                        ; full line printed?
+        cpy #$29 * 2                        ; full line printed?
         bne _loop_print_logo                ; no -> continue loop
         rts
 
