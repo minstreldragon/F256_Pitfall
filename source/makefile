@@ -7,7 +7,7 @@ RM := rm
 #ASFLAGS := --quiet
 
 ### Foenix IDE workaround ###
-DEFINES := FOENIX_IDE:=FALSE
+DEFINES := -D FOENIX_IDE:=FALSE -D DO_BUGFIX:=TRUE
 
 
 phony: pitfall
@@ -16,7 +16,7 @@ pitfall: game.bin pitfall_manifest.xml
 	$(PGZTOOL) pitfall_manifest.xml
 
 game.bin: game.asm pitfall.asm archdep.h
-	$(AS) -D $(DEFINES) -b --m65c02 -L pitfall.listing -o $@ $<
+	$(AS) $(DEFINES) -b --m65c02 -L pitfall.listing -o $@ $<
 
 clean:
 	-$(RM) pitfall.pgz
