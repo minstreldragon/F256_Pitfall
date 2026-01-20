@@ -9,10 +9,6 @@
 .include "common/f256_irq.asm"
 .include "common/f256_lcd.asm"
 
-CRACK :?= true
-BUGFIX :?= true
-STRIP_UNUSED :?= true
-
 TIMER_EVENT_MAX = 1
 
 ; The timer interval is calculated from:
