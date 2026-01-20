@@ -944,17 +944,22 @@ _setSpritePointer
         lda spritedata_ptr_lb,x
         adc #<mainSpritesF256
         sta VKY_SP0_AD_L+SPRITE_OBJ_HARRY*8      ; sprite address register, low byte
+        sta sprite_shadow_table[SPRITE_OBJ_HARRY].adl  ; sprite pointer Harry, lb
         lda spritedata_ptr_hb,x
         adc #>mainSpritesF256
         sta VKY_SP0_AD_M+SPRITE_OBJ_HARRY*8
+        sta sprite_shadow_table[SPRITE_OBJ_HARRY].adm  ; sprite pointer Harry, mb
 
         sec
-        lda VKY_SP0_AD_L+SPRITE_OBJ_HARRY*8      ; sprite address register, low byte
+        lda sprite_shadow_table[SPRITE_OBJ_HARRY].adl  ; sprite pointer Harry, lb
         sbc #<3*24
         sta VKY_SP0_AD_L+SPRITE_OBJ_HARRY*8      ; sprite address register, low byte
-        lda VKY_SP0_AD_M+SPRITE_OBJ_HARRY*8
+        sta sprite_shadow_table[SPRITE_OBJ_HARRY].adl  ; sprite pointer Harry, lb
+
+        lda sprite_shadow_table[SPRITE_OBJ_HARRY].adm  ; sprite pointer Harry, mb
         sbc #>3*24
         sta VKY_SP0_AD_M+SPRITE_OBJ_HARRY*8
+        sta sprite_shadow_table[SPRITE_OBJ_HARRY].adm  ; sprite pointer Harry, mb
 
         lda #$01
         sta VKY_SP0_AD_H+SPRITE_OBJ_HARRY*8
@@ -968,12 +973,15 @@ _setSpritePointer
 
 _decreasePointer
         sec
-        lda VKY_SP0_AD_L+SPRITE_OBJ_HARRY*8      ; sprite address register, low byte
+        lda sprite_shadow_table[SPRITE_OBJ_HARRY].adl  ; sprite pointer Harry, lb
         sbc #<24
         sta VKY_SP0_AD_L+SPRITE_OBJ_HARRY*8      ; sprite address register, low byte
-        lda VKY_SP0_AD_M+SPRITE_OBJ_HARRY*8
+        sta sprite_shadow_table[SPRITE_OBJ_HARRY].adl  ; sprite pointer Harry, lb
+
+        lda sprite_shadow_table[SPRITE_OBJ_HARRY].adm  ; sprite pointer Harry, mb
         sbc #>24
         sta VKY_SP0_AD_M+SPRITE_OBJ_HARRY*8
+        sta sprite_shadow_table[SPRITE_OBJ_HARRY].adm  ; sprite pointer Harry, mb
 
 _exit
         plx
@@ -1001,17 +1009,21 @@ _updateSpritePosL
         clc
         adc #$08                        ; adjust for different X offset on F256 vs C64
         sta VKY_SP0_POS_X_L,y
+        sta sprite_shadow_table[0].xl,y ; sprite shadow object
         lda zp_log_0_x_pos+1,x          ; x-coordinate, high byte
         adc #$00
         sta VKY_SP0_POS_X_H,y
+        sta sprite_shadow_table[0].xh,y ; sprite shadow object
 
         plx
         lda zp_log_0_y_pos+0,x          ; y-coordinate, low byte
         sec
         sbc #$12                        ; adjust for different Y offset on F256 vs C64
         sta VKY_SP0_POS_Y_L,y
+        sta sprite_shadow_table[0].yl,y ; sprite shadow object
         lda #$00                        ; y-coordinate, high byte
         sta VKY_SP0_POS_Y_H,y
+        sta sprite_shadow_table[0].yh,y ; sprite shadow object
         lda #%00100001                  ; size: 24x24, layer 0, LUT 0, Enable
         sta VKY_SP0_CTRL,y              ; enable sprite
         tya
@@ -1030,14 +1042,18 @@ _updateSpritePosL
         clc
         adc #$08                        ; adjust for different X offset on F256 vs C64
         sta VKY_SP0_POS_X_L,y
+        sta sprite_shadow_table[0].xl,y ; sprite shadow object
         lda zp_scorpion_x_pos+1         ; x-coordinate, high byte
         adc #$00
         sta VKY_SP0_POS_X_H,y
+        sta sprite_shadow_table[0].xh,y ; sprite shadow object
 
         lda #$d9-$12                    ; scorpion y position
         sta VKY_SP0_POS_Y_L,y
+        sta sprite_shadow_table[0].yl,y ; sprite shadow object
         lda #$00                        ; y-coordinate, high byte
         sta VKY_SP0_POS_Y_H,y
+        sta sprite_shadow_table[0].yh,y ; sprite shadow object
 
         lda #%00100001                  ; size: 24x24, layer 0, LUT 0, Enable
         sta VKY_SP0_CTRL,y              ; enable sprite
@@ -1050,16 +1066,20 @@ _updateSpritePosL
         clc
         adc #$08                        ; adjust for different X offset on F256 vs C64
         sta VKY_SP0_POS_X_L,y
+        sta sprite_shadow_table[0].xl,y ; sprite shadow object
         lda zp_player_x_pos+1           ; x-coordinate, high byte
         adc #$00
         sta VKY_SP0_POS_X_H,y
+        sta sprite_shadow_table[0].xh,y ; sprite shadow object
 
         lda zp_player_y_pos             ; Harry's y-coordinate
         sec
         sbc #$12                        ; adjust for different Y offset on F256 vs C64
         sta VKY_SP0_POS_Y_L,y
+        sta sprite_shadow_table[0].yl,y ; sprite shadow object
         lda #$00                        ; y-coordinate, high byte
         sta VKY_SP0_POS_Y_H,y
+        sta sprite_shadow_table[0].yh,y ; sprite shadow object
 
         ; Harry is displayed in sprite layer 1, so he can be hidden
         ; behinde the foreground tile layer
@@ -1261,8 +1281,8 @@ checkCollision                          ; check collision between harry and spri
 
 _checkVertical
         sec
-        lda VKY_SP0_POS_Y_L,y
-        sbc VKY_SP0_POS_Y_L + SPRITE_OBJ_HARRY*8    ; position Harry, lb
+        lda sprite_shadow_table[0].yl,y                ; position object
+        sbc sprite_shadow_table[SPRITE_OBJ_HARRY].yl   ; position Harry, lb
         sta delta_y
         bcs _checkVertAbs               ; difference positive ->
 
@@ -1276,13 +1296,13 @@ _checkVertAbs
 
 _checkHorizontal
         sec
-        lda VKY_SP0_POS_X_L,y           ; position object
-        sbc VKY_SP0_POS_X_L + SPRITE_OBJ_HARRY*8        ; position Harry, lb
+        lda sprite_shadow_table[0].xl,y                ; position object
+        sbc sprite_shadow_table[SPRITE_OBJ_HARRY].xl   ; position Harry, lb
         sta delta_x+0
         sta distance_x+0
 
-        lda VKY_SP0_POS_X_H,y           ; position object
-        sbc VKY_SP0_POS_X_H + SPRITE_OBJ_HARRY*8        ; position Harry, hb
+        lda sprite_shadow_table[0].xh,y                ; position object
+        sbc sprite_shadow_table[SPRITE_OBJ_HARRY].xh   ; position Harry, hb
         sta delta_x+1
         sta distance_x+1
         bcs _checkHorAbs
@@ -2617,6 +2637,21 @@ sprite_masks_table_hb
         .for id in range(33)
         .byte > sprite_masks + id * 64
         .endfor
+
+sprite_struct .struct
+ctrl    .byte ?
+adl     .byte ?
+adm     .byte ?
+adh     .byte ?
+xl      .byte ?
+xh      .byte ?
+yl      .byte ?
+yh      .byte ?
+        .endstruct
+
+sprite_shadow_table .brept 32           ; current sprite positions (Vicky registers are read only)
+        .dstruct sprite_struct          ; reserve space for 32 entries
+        .endrept
 
         .align $100                     ; align tilemap_text to word
 sprite_masks
