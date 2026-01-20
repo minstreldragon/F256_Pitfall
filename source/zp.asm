@@ -162,7 +162,7 @@ zp_src                                  ; source pointer (2) ($36)
 zp_dst2                                 ; destination pointer (alternative) (2)
 zp_score_var_index                      ; index into score variable
 zp_delay                                ; delay loop variable
-zp_iterator_1 = $36
+zp_iterator_1
 zp_sound_pitch_abs_value                ; sound pitch (absolute)
 zp_or_mask2
 zp_tree_column                          ; screen mem column for current tree trunk
